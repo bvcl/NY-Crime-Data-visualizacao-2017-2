@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <title>Google Map</title>
+  <style>
+    #map{
+      height:600px;
+      width:100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+
+    function initMap(){
+      var options={
+        zoom:10,
+        center:{lat:40.730610,lng:-73.935242}
+      }
+      var map = new google.maps.Map(document.getElementById('map'),options);
+
+      function getCircle() {
+          return {
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor: 'red',
+            fillOpacity: 1,
+            scale: 2,
+            strokeColor: 'red',
+            strokeWeight: .5
+          };
+        }
+
+      function addMarker(coords){
+        var marker = new google.maps.Marker({
+          position:coords,
+          map:map,
+          icon:getCircle()
+        })
+      }
+
+    d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
+      data.forEach(function(d){
+        addMarker({lat:parseFloat(d.Latitude),lng:parseFloat(d.Longitude)})
+      })
+    })
+
+    }
+  </script>
+
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCJr47yUBVMeHRU644p84BpIcueI-Qh96Y&callback=initMap">
+  </script>
+</body>
+</html>
+
+<!--AIzaSyCJr47yUBVMeHRU644p84BpIcueI-Qh96Y-->
