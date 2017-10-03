@@ -67,6 +67,28 @@
   <div id="map"></div>
   <script>
     var mymap = L.map('map').setView([40.730610, -73.935242], 12);
+    mymap.options.minZoom = 9;
+
+    mymap.on('zoomend',function(){
+        var Z = mymap.getZoom();
+        console.log(Z);
+        if(Z<=13){
+          markers.forEach(function(d){
+            d.setRadius(240/Z);
+          })
+        }
+        else if(Z<17){
+          markers.forEach(function(d){
+            d.setRadius(120/Z);
+          })
+        }
+        else{
+          markers.forEach(function(d){
+            d.setRadius(60/Z);
+          })
+        }
+
+    })
     var markers = [];
 
     L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiYnZjbCIsImEiOiJjajhjOTRob2EwN2dyMndwbXd2cDJyZnRnIn0.7ZyvE-5-N36TRT56T-Us8g', {
@@ -100,6 +122,8 @@
 
       markers.push(circle);
     }
+
+
 
     function updateMap(){
       str = document.querySelector('input[name="Maps"]:checked').value;
