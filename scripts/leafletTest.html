@@ -8,6 +8,7 @@
   <script src="/community_districts.geojson"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
   <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script type="text/javascript" src="timeLineBrush.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css"
   integrity="sha512-M2wvCLH6DSRazYeZRIm1JnYyh22purTM+FDB5CsyxtQJYeKq83arPe5wgbNmcFXGqiSH2XR8dT/fJISVA1r/zQ=="
   crossorigin=""/>
@@ -16,6 +17,7 @@
    crossorigin=""></script>
    <style>
      #map{
+       left: 22px;//mudanças aqui implicam em mudar a posicao inicial do timeLineBrush para deixar alinhado
        height:500px;
        width:50%;
      }
@@ -63,11 +65,27 @@
      #labelMapa5{
        top: 352px;
      }
+     .brush .overlay{
+       cursor: default;
+     }
    </style>
 </head>
 <body>
   <div id="map"></div>
   <script>
+    var myDispatcher = d3.dispatch("selectionChanged");
+
+    myDispatcher.on("selectionChanged", function(){
+      for(var i=0;i<markers.length;i++){
+        if(inInterval(this.dates[0],this.dates[1],markers[i].options.date)){
+          markers[i].addTo(mymap);
+        }
+        else markers[i].removeFrom(mymap);
+      }
+    });
+    var k = new TimeLineBrush("t1",10,0,1);
+    k.dispatcher=myDispatcher;
+
     var mymap = L.map('map').setView([40.730610, -73.935242], 12);
     mymap.options.minZoom = 9;
 
@@ -105,6 +123,15 @@
         L.geoJSON(data).addTo(mymap);
     });
 
+    var parseDate = d3.timeParse("%m/%d/%Y");
+    function inInterval(a,b,c){
+      var d0 = a;
+      var df = b;
+      var d = c;
+      if(d-d0>=0 && df-d>=0)return true;
+      else return false;
+    }
+
     var popup = L.popup();
 
     function addMarker(obj){
@@ -115,6 +142,7 @@
           radius: 80,
           text:obj.OFNS_DESC,
           area:obj.BORO_NM,
+          date:parseDate(obj.CMPLNT_FR_DT)
       })
       .addTo(mymap)
       .on('mouseover',function(){
