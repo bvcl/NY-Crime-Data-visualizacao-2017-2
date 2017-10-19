@@ -17,7 +17,7 @@
    crossorigin=""></script>
    <style>
      #map{
-       left: 22px;//mudanças aqui implicam em mudar a posicao inicial do timeLineBrush para deixar alinhado
+       left: 22px;
        height:500px;
        width:50%;
      }
@@ -72,26 +72,38 @@
 </head>
 <body>
   <div id="map"></div>
-  <script>
-    var myDispatcher = d3.dispatch("selectionChanged");
+  <input id="mapButton0" class="filterButton" type="radio" name="Maps" value="ALL" autocomplete="off" onclick="forceBrush()" checked>
+  <input id="mapButton1" class="filterButton" type="radio" name="Maps" value="QUEENS" autocomplete="off" onclick="forceBrush()">
+  <input id="mapButton2" class="filterButton" type="radio" name="Maps" value="BRONX" autocomplete="off" onclick="forceBrush()">
+  <input id="mapButton3" class="filterButton" type="radio" name="Maps" value="BROOKLYN" autocomplete="off" onclick="forceBrush()">
+  <input id="mapButton4" class="filterButton" type="radio" name="Maps" value="STATEN ISLAND" autocomplete="off" onclick="forceBrush()">
+  <input id="mapButton5" class="filterButton" type="radio" name="Maps" value="MANHATTAN" autocomplete="off" onclick="forceBrush()">
 
+  <script>
+    var myDispatcher = d3.dispatch("selectionChanged","nullSelection");
     myDispatcher.on("selectionChanged", function(){
+      str = document.querySelector('input[name="Maps"]:checked').value;
       for(var i=0;i<markers.length;i++){
-        if(inInterval(this.dates[0],this.dates[1],markers[i].options.date)){
+        if(inInterval(this.dates[0],this.dates[1],markers[i].options.date) && (str=="ALL" || markers[i].options.area==str)){
           markers[i].addTo(mymap);
         }
         else markers[i].removeFrom(mymap);
       }
     });
+    myDispatcher.on("nullSelection", function(){
+      document.getElementById('mapButton0').checked=true;
+      for(var i=0;i<markers.length;i++){
+        markers[i].addTo(mymap);
+      }
+    });
+
     var k = new TimeLineBrush("t1",10,0,1);
     k.dispatcher=myDispatcher;
-
     var mymap = L.map('map').setView([40.730610, -73.935242], 12);
     mymap.options.minZoom = 9;
 
     mymap.on('zoomend',function(){
         var Z = mymap.getZoom();
-        console.log(Z);
         if(Z<=13){
           markers.forEach(function(d){
             d.setRadius(240/Z);
@@ -158,8 +170,6 @@
       markers.push(circle);
     }
 
-
-
     function updateMap(){
       str = document.querySelector('input[name="Maps"]:checked').value;
       for (var i = 0; i < markers.length; i++) {
@@ -174,20 +184,16 @@
         }
       }
     }
+
+    function forceBrush(){
+      k.forceBrush();
+    }
     d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
       data.forEach(function(d){
         addMarker(d)
       })
     })
   </script>
-
-  <input id="mapButton0" type="radio" name="Maps" value="ALL" autocomplete="off" onclick="updateMap()">
-  <input id="mapButton1" type="radio" name="Maps" value="QUEENS" autocomplete="off" onclick="updateMap()">
-  <input id="mapButton2" type="radio" name="Maps" value="BRONX" autocomplete="off" onclick="updateMap()">
-  <input id="mapButton3" type="radio" name="Maps" value="BROOKLYN" autocomplete="off" onclick="updateMap()">
-  <input id="mapButton4" type="radio" name="Maps" value="STATEN ISLAND" autocomplete="off" onclick="updateMap()">
-  <input id="mapButton5" type="radio" name="Maps" value="MANHATTAN" autocomplete="off" onclick="updateMap()">
-
   <label id="labelMapa0">All</label>
   <label id="labelMapa1">Queens</label>
   <label id="labelMapa2">Bronx</label>

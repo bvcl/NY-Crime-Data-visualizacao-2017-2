@@ -53,8 +53,20 @@ class TimeLineBrush{
       .call(this.brush.move, [posx,posx+641])
     }
 
+    forceBrush(){
+      var x = parseFloat(d3.select(".selection")._groups[0][0].getAttribute("x"));
+      var w = parseFloat(d3.select(".selection")._groups[0][0].getAttribute("width"));
+      var myname = this.name;
+      var arr = [this.currentInvScale(x),this.currentInvScale2(x+w)]
+      if(this.dispatcher!=null)this.dispatcher.apply("selectionChanged",{callerID:myname,dates:arr,posx:this.posx,scale:this.currentScale});
+    }
     brushed(myself){
-      if(!d3.event.selection)return;
+      if(!d3.event.selection){
+        myself.context.select(".axisX").call(myself.xAxis2.scale(myself.x2));
+        myself.context.select(".brush").call(myself.brush.move, [myself.posx,((myself.posx)+641)]);
+        this.dispatcher.apply("nullSelection");
+        return;
+      }
       var myname = this.name;
       var arr = [myself.currentInvScale(d3.event.selection[0]),myself.currentInvScale2(d3.event.selection[1])]
       if(this.dispatcher!=null)this.dispatcher.apply("selectionChanged",{callerID:myname,dates:arr,posx:this.posx,scale:this.currentScale});
