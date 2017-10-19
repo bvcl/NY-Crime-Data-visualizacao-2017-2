@@ -170,21 +170,6 @@
       markers.push(circle);
     }
 
-    function updateMap(){
-      str = document.querySelector('input[name="Maps"]:checked').value;
-      for (var i = 0; i < markers.length; i++) {
-        if(str=="ALL" && markers[i]._map==null){
-          markers[i].addTo(mymap);
-        }
-        else if(str!="ALL" && markers[i]._map!=null && markers[i].options.area!=str){
-          markers[i].removeFrom(mymap);
-        }
-        else if(str!="ALL" && markers[i]._map==null && markers[i].options.area==str) {
-          markers[i].addTo(mymap);
-        }
-      }
-    }
-
     function forceBrush(){
       k.forceBrush();
     }
