@@ -8,6 +8,7 @@
   <script src="/community_districts.geojson"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
   <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
   <script type="text/javascript" src="timeLineBrush.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css"
   integrity="sha512-M2wvCLH6DSRazYeZRIm1JnYyh22purTM+FDB5CsyxtQJYeKq83arPe5wgbNmcFXGqiSH2XR8dT/fJISVA1r/zQ=="
@@ -43,6 +44,9 @@
      #mapButton5{
        top: 350px;
      }
+     #remGeoButton{
+       top: 400px;
+     }
      label{
        position:absolute;
        left: 825px;
@@ -65,6 +69,9 @@
      #labelMapa5{
        top: 352px;
      }
+     #policeDepts{
+       top: 403px;
+     }
      .brush .overlay{
        cursor: default;
      }
@@ -78,6 +85,9 @@
   <input id="mapButton3" class="filterButton" type="radio" name="Maps" value="BROOKLYN" autocomplete="off" onclick="forceBrush()">
   <input id="mapButton4" class="filterButton" type="radio" name="Maps" value="STATEN ISLAND" autocomplete="off" onclick="forceBrush()">
   <input id="mapButton5" class="filterButton" type="radio" name="Maps" value="MANHATTAN" autocomplete="off" onclick="forceBrush()">
+
+  <input id="remGeoButton" type="checkbox" autocomplete="off" onclick="removeGeoJson()">
+
 
   <script>
     var myDispatcher = d3.dispatch("selectionChanged","nullSelection");
@@ -121,7 +131,6 @@
         }
 
     })
-    var markers = [];
 
     L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiYnZjbCIsImEiOiJjajhjOTRob2EwN2dyMndwbXd2cDJyZnRnIn0.7ZyvE-5-N36TRT56T-Us8g', {
       attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
@@ -130,11 +139,40 @@
       accessToken: 'your.mapbox.access.token'
     }).addTo(mymap);
 
-    $.getJSON("community_districts.geojson",function(data){
+    var geoJson;
+    var gjData
+    $.getJSON("Police Precincts.geojson",function(data){
     // add GeoJSON layer to the map once the file is loaded
-        L.geoJSON(data).addTo(mymap);
+        geoJson=L.geoJSON(data);
+        data.features.forEach(function(d){
+          d.properties.occurrences=0;
+        })
+        gjData=data;
+        //geoJson.addTo(mymap);
     });
 
+    var flag=true;
+
+    function removeGeoJson(){
+      var color2 = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, 32]).clamp(true);
+      if(flag){
+        console.log(countByPoliceDept);
+        gjData.features.forEach(function(d){
+          d.properties.occurrences=countByPoliceDept[d.properties.precinct-1];
+        })
+
+        geoJson=L.geoJSON(gjData,{style: function(d){
+          return {fillColor: color2(d.properties.occurrences),
+                  color: color2(d.properties.occurrences),
+                  fillOpacity: 0.4,
+                  opacity: 0.4};
+        }});
+        flag=false;
+      }
+      //max = 32 min = 0
+      if(!document.getElementById('remGeoButton').checked)geoJson.removeFrom(mymap);
+      else geoJson.addTo(mymap);
+    }
     var parseDate = d3.timeParse("%m/%d/%Y");
     function inInterval(a,b,c){
       var d0 = a;
@@ -145,6 +183,7 @@
     }
 
     var popup = L.popup();
+    var markers = [];
 
     function addMarker(obj){
       var circle = L.circle([obj.Latitude,obj.Longitude], {
@@ -173,9 +212,14 @@
     function forceBrush(){
       k.forceBrush();
     }
+
+    var countByPoliceDept=[];
+    for(i=0;i<123;i++)countByPoliceDept.push(0);
     d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
-      data.forEach(function(d){
-        addMarker(d)
+      console.log(data);
+      data.forEach(function(d,i){
+        addMarker(d);
+        countByPoliceDept[Number(d.ADDR_PCT_CD)-1]+=1;
       })
     })
   </script>
@@ -185,5 +229,7 @@
   <label id="labelMapa3">Brooklyn</label>
   <label id="labelMapa4">Staten Island</label>
   <label id="labelMapa5">Manhattan</label>
+
+  <label id="policeDepts">Show Police Depts.</label>
 </body>
 </html>
