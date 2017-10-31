@@ -107,7 +107,7 @@
       }
     });
 
-    var k = new TimeLineBrush("t1",10,0,1);
+    var k = new TimeLineBrush("t1",10,0,1,[]);
     k.dispatcher=myDispatcher;
     var mymap = L.map('map').setView([40.730610, -73.935242], 12);
     mymap.options.minZoom = 9;
@@ -236,13 +236,36 @@
     }
 
     var countByPoliceDept=[];
+    var allDates=[];
+    var occurrencesByDate=[]
+    var ano,mes,dia;
+    for(p=2000;p<2017;p++){
+      ano=p.toString();
+      for(j=1;j<13;j++){
+        if(j<10)mes="0"+j;
+        else mes=j.toString();
+        for(i=1;i<32;i++){
+          if(i<10)dia="0"+i;
+          else dia=i.toString()
+          finalDate = mes+"/"+dia+"/"+ano;
+          allDates.push(finalDate)
+          occurrencesByDate.push(0);
+        }
+      }
+    }
+
     for(i=0;i<123;i++)countByPoliceDept.push(0);
     d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
       console.log(data);
       data.forEach(function(d,i){
         addMarker(d);
         countByPoliceDept[Number(d.ADDR_PCT_CD)-1]+=1;
+        occurrencesByDate[allDates.indexOf(d.CMPLNT_FR_DT)]+=1
       })
+      occurrencesByDate = allDates.map(function(e, i) {
+        return [parseDate(e), occurrencesByDate[i]];
+      });
+      k.updateLineChart(occurrencesByDate);
     })
   </script>
   <label id="labelMapa0">All</label>

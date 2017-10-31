@@ -1,8 +1,10 @@
 class TimeLineBrush{
-    constructor(name,posx,posy,id){
+    constructor(name,posx,posy,id,dataForLine){
       this.id=id;
       this.name = name;
       this.posx=posx;
+      this.data = dataForLine;
+      this.iniData = dataForLine;
       this.svg = d3.select("body").append("svg")
                   .attr("class","canvas")
                   .attr("width",700)
@@ -20,10 +22,21 @@ class TimeLineBrush{
 
       this.x2 = d3.scaleTime().range([posx,posx+641]).domain([parseDate("01/01/2000"),parseDate("12/31/2016")]);
 
+      this.currentYScale = d3.scaleLinear().range([posy+60,posy]).domain([0,781]);
+
       this.currentScale=d3.scaleTime().range([posx,posx+641]).domain([parseDate("01/01/2000"),parseDate("12/31/2016")]);
       this.currentInvScale=d3.scaleTime().domain([posx,posx+641]).range([parseDate("01/01/2000"),parseDate("12/31/2016")]);
       this.currentInvScale2=d3.scaleTime().domain([posx,posx+641]).range([parseDate("01/01/2000"),parseDate("12/31/2016")]);
 
+      var xScaleAux = this.currentScale;
+      var yScaleAux = this.currentYScale;
+      this.line = d3.line()
+                    .x(function(d,i) {
+                      return xScaleAux(d[0]);
+                    })
+                    .y(function(d,i) {
+                      return yScaleAux(d[1]);
+                    })
 
       this.xAxis2 = d3.axisBottom(this.x2).ticks(17);//.tickFormat(d3.timeFormat("%Y"));
 
@@ -41,6 +54,12 @@ class TimeLineBrush{
 
       this.context = this.svg.append("g")
       .attr("class", "context")
+
+      this.context2 = this.svg.append("g")
+      .attr("class", "context2")
+
+      this.context2.append("path").attr("d",this.line([])).attr("class","line").style("fill", "none").style("stroke", "blue").style("stroke-width", 2) ;
+
 
       this.context.append("g")
       .attr("class", "axisX")
@@ -72,6 +91,13 @@ class TimeLineBrush{
       if(this.dispatcher!=null)this.dispatcher.apply("selectionChanged",{callerID:myname,dates:arr,posx:this.posx,scale:this.currentScale});
     }
 
+    inInterval(c){
+      var d0 = this.currentScale.domain()[0];
+      var df = this.currentScale.domain()[1];
+      var d = c;
+      if(d-d0>=0 && df-d>=0)return true;
+      else return false;
+    }
     zoomed(myself){
       myself.currentScale = d3.event.transform.rescaleX(myself.x2);
       myself.currentInvScale = d3.scaleTime().range(myself.currentScale.domain()).domain(myself.currentScale.range())
@@ -79,5 +105,28 @@ class TimeLineBrush{
 
       myself.context.select(".axisX").call(myself.xAxis2.scale(myself.currentScale));
       myself.context.select(".brush").call(myself.brush.move, myself.x2.range().map(d3.event.transform.invertX,d3.event.transform ));
+
+      var aux=[]
+      var auxThis = this;
+      this.iniData.forEach(function(d){
+        if(auxThis.inInterval(d[0]))aux.push([d[0],d[1]])
+      })
+      this.data=aux;
+      var xScaleAux = this.currentScale;
+      var yScaleAux = this.currentYScale;
+      this.line = d3.line()
+                    .x(function(d,i) {
+                      return xScaleAux(d[0]);
+                    })
+                    .y(function(d,i) {
+                      return yScaleAux(d[1]);
+                    })
+      this.context2.select(".line").attr("d", this.line(this.data));
+    }
+
+    updateLineChart(data){
+        this.data=data;
+        this.iniData=data;
+        this.context2.select(".line").attr("d", this.line(this.data));
     }
 }
