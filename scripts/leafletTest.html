@@ -9,6 +9,7 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
   <script src="https://d3js.org/d3.v4.min.js"></script>
   <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <script src="crossfilter.js"></script>
   <script type="text/javascript" src="timeLineBrush.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css"
   integrity="sha512-M2wvCLH6DSRazYeZRIm1JnYyh22purTM+FDB5CsyxtQJYeKq83arPe5wgbNmcFXGqiSH2XR8dT/fJISVA1r/zQ=="
@@ -257,6 +258,10 @@
     for(i=0;i<123;i++)countByPoliceDept.push(0);
     d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
       console.log(data);
+      // var crimeNYC = crossfilter(data);
+      // var crimeByPDPT = crimeNYC.dimension(function(d) { return Number(d.ADDR_PCT_CD); });
+      // var crimeGroupsByPDPT = crimeByPDPT.group();
+      // console.log(crimeGroupsByPDPT.all());
       data.forEach(function(d,i){
         addMarker(d);
         countByPoliceDept[Number(d.ADDR_PCT_CD)-1]+=1;
