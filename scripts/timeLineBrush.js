@@ -32,10 +32,10 @@ class TimeLineBrush{
       var yScaleAux = this.currentYScale;
       this.line = d3.line()
                     .x(function(d,i) {
-                      return xScaleAux(d[0]);
+                      return xScaleAux(d.key);
                     })
                     .y(function(d,i) {
-                      return yScaleAux(d[1]);
+                      return yScaleAux(d.value);
                     })
 
       this.xAxis2 = d3.axisBottom(this.x2).ticks(17);//.tickFormat(d3.timeFormat("%Y"));
@@ -109,17 +109,18 @@ class TimeLineBrush{
       var aux=[]
       var auxThis = this;
       this.iniData.forEach(function(d){
-        if(auxThis.inInterval(d[0]))aux.push([d[0],d[1]])
+        if(auxThis.inInterval(d.key))aux.push(d)
       })
+
       this.data=aux;
       var xScaleAux = this.currentScale;
       var yScaleAux = this.currentYScale;
       this.line = d3.line()
                     .x(function(d,i) {
-                      return xScaleAux(d[0]);
+                      return xScaleAux(d.key);
                     })
                     .y(function(d,i) {
-                      return yScaleAux(d[1]);
+                      return yScaleAux(d.value);
                     })
       this.context2.select(".line").attr("d", this.line(this.data));
     }

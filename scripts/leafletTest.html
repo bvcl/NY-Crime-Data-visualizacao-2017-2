@@ -155,11 +155,12 @@
     var flag=true;
 
     function removeGeoJson(){
-      var color2 = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, 32]).clamp(true);
+      var color2 = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, crimeGroupsByPDPT.top(1)[0].value]).clamp(true);
       if(flag){
-        console.log(countByPoliceDept);
         gjData.features.forEach(function(d){
-          d.properties.occurrences=countByPoliceDept[d.properties.precinct-1];
+          var objAux = crimeGroupsByPDPT.all().find((item) => item.key === Number(d.properties.precinct));
+          if(typeof(objAux)!=="undefined")d.properties.occurrences=objAux.value;
+          else d.properties.occurrences=0;
         })
 
         geoJson=L.geoJSON(gjData,{
@@ -183,12 +184,15 @@
       //max = 32 min = 0
       if(!document.getElementById('remGeoButton').checked){
         geoJson.removeFrom(mymap);
+        markers.forEach(function(d){
+         d.setStyle({fillOpacity:1,opacity:1})
+        })
         forceBrush();
       }
       else{
        geoJson.addTo(mymap);
        markers.forEach(function(d){
-         d.removeFrom(mymap);
+        d.setStyle({fillOpacity:0,opacity:0})
        })
       }
     }
@@ -209,9 +213,10 @@
       .openOn(mymap);
     }
 
-    var markers = [];
 
+    var markers = [];
     function addMarker(obj){
+      //if((markers.findIndex((item) => (item._latlng.lat == obj.Latitude) && (item._latlng.lng == obj.Longitude)))!=-1)return;
       var circle = L.circle([obj.Latitude,obj.Longitude], {
           color: 'red',
           fillColor: '#f03',
@@ -236,41 +241,37 @@
       k.forceBrush();
     }
 
-    var countByPoliceDept=[];
-    var allDates=[];
-    var occurrencesByDate=[]
-    var ano,mes,dia;
-    for(p=2000;p<2017;p++){
-      ano=p.toString();
-      for(j=1;j<13;j++){
-        if(j<10)mes="0"+j;
-        else mes=j.toString();
-        for(i=1;i<32;i++){
-          if(i<10)dia="0"+i;
-          else dia=i.toString()
-          finalDate = mes+"/"+dia+"/"+ano;
-          allDates.push(finalDate)
-          occurrencesByDate.push(0);
-        }
-      }
-    }
-
-    for(i=0;i<123;i++)countByPoliceDept.push(0);
-    d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
+    var crimeGroupsByPDPT,crimeByPDPT;
+    var crimeGroupsByDate,crimeByDate,crimeByDate2;
+    var crimeGroupsByLatLon,crimeByLatLon;
+    d3.csv("NYPD_Complaint_Data_Historic_Sample100k.csv",function(data){
       console.log(data);
-      // var crimeNYC = crossfilter(data);
-      // var crimeByPDPT = crimeNYC.dimension(function(d) { return Number(d.ADDR_PCT_CD); });
-      // var crimeGroupsByPDPT = crimeByPDPT.group();
-      // console.log(crimeGroupsByPDPT.all());
+      var crimeNYC = crossfilter(data);
+
+      crimeByLatLon = crimeNYC.dimension(function(d){return d.Lat_Lon});
+
+      crimeByPDPT = crimeNYC.dimension(function(d) { return Number(d.ADDR_PCT_CD); });
+      crimeGroupsByPDPT = crimeByPDPT.group();
+
+      crimeByDate = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT); });
+      crimeByDate2 = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT); });
+      crimeByDate2.filter(function(d){
+        return inInterval(parseDate("01/01/2000"),parseDate("12/31/2016"),d)
+      })
+      crimeGroupsByDate = crimeByDate.group(function(d){if(inInterval(parseDate("01/01/2000"),parseDate("12/31/2016"),d))return d});
+
+
+      crimeGroupsByLatLon = crimeByLatLon.group();
+      // console.log(crimeGroupsByLatLon.top(5));
+      // console.log(crimeByLatLon.top(Infinity));
+      // crimeGroupsByDate=crimeByDate.group();
       data.forEach(function(d,i){
         addMarker(d);
-        countByPoliceDept[Number(d.ADDR_PCT_CD)-1]+=1;
-        occurrencesByDate[allDates.indexOf(d.CMPLNT_FR_DT)]+=1
       })
-      occurrencesByDate = allDates.map(function(e, i) {
-        return [parseDate(e), occurrencesByDate[i]];
-      });
-      k.updateLineChart(occurrencesByDate);
+      //console.log(hashTable);
+
+      //console.log(markers);
+      k.updateLineChart(crimeGroupsByDate.all());
     })
   </script>
   <label id="labelMapa0">All</label>
