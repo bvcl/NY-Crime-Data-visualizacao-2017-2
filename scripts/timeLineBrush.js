@@ -31,10 +31,10 @@ class TimeLineBrush{
       var xScaleAux = this.currentScale;
       var yScaleAux = this.currentYScale;
       this.line = d3.line()
-                    .x(function(d,i) {
+                    .x(function(d) {
                       return xScaleAux(d.key);
                     })
-                    .y(function(d,i) {
+                    .y(function(d) {
                       return yScaleAux(d.value);
                     })
 
@@ -95,8 +95,7 @@ class TimeLineBrush{
       var d0 = this.currentScale.domain()[0];
       var df = this.currentScale.domain()[1];
       var d = c;
-      if(d-d0>=0 && df-d>=0)return true;
-      else return false;
+      return (d-d0>=0 && df-d>=0);
     }
     zoomed(myself){
       myself.currentScale = d3.event.transform.rescaleX(myself.x2);
