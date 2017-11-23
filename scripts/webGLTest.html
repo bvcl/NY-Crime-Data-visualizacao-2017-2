@@ -1,0 +1,546 @@
+<!doctype html>
+<html>
+<head>
+    <title>Many Points with  leaflet WebGL</title>
+    <meta charset="utf-8">
+
+    <style>
+        html, body {
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            height: 100%;
+        }
+
+        #map {
+            position: static;
+            left: 22px;
+            height:500px;
+            width:50%;
+        }
+        input{
+          position:absolute;
+          left: 800px;
+        }
+        #mapButton0{
+          top: 100px;
+        }
+        #mapButton1{
+          top: 150px;
+        }
+        #mapButton2{
+          top: 200px;
+        }
+        #mapButton3{
+          top: 250px;
+        }
+        #mapButton4{
+          top: 300px;
+        }
+        #mapButton5{
+          top: 350px;
+        }
+        #remGeoButton{
+          top: 400px;
+        }
+        label{
+          position:absolute;
+          left: 825px;
+        }
+        #labelMapa0{
+          top: 102px;
+        }
+        #labelMapa1{
+          top: 152px;
+        }
+        #labelMapa2{
+          top: 202px;
+        }
+        #labelMapa3{
+          top: 252px;
+        }
+        #labelMapa4{
+          top: 302px;
+        }
+        #labelMapa5{
+          top: 352px;
+        }
+        #policeDepts{
+          top: 403px;
+        }
+        .brush .overlay{
+          cursor: default;
+        }
+    </style>
+    <!-- vertex shader -->
+    <script id="vshader" type="x-shader/x-vertex">
+        uniform mat4 u_matrix;
+        attribute vec4 a_vertex;
+        attribute float a_pointSize;
+        attribute vec4 a_color;
+        varying vec4 v_color;
+
+        void main() {
+        // Set the size of the point
+        gl_PointSize =  a_pointSize;
+
+        // multiply each vertex by a matrix.
+        gl_Position = u_matrix * a_vertex;
+
+
+        // pass the color to the fragment shader
+        v_color = a_color;
+        }
+    </script>
+    <!-- fragment shader -->
+
+
+
+    <script id="fshader" type="x-shader/x-fragment">
+        precision mediump float;
+        varying vec4 v_color;
+        uniform int u_colorFlag;
+
+        void main() {
+
+        float border = 0.05;
+        float radius = 0.5;
+        vec4 color0 = vec4(0.0, 0.0, 0.0, 0.0);
+        vec4 color1 = vec4(v_color[0], v_color[1], v_color[2], 1.0);
+
+        vec2 m = gl_PointCoord.xy - vec2(0.5, 0.5);
+        float dist = radius - sqrt(m.x * m.x + m.y * m.y);
+
+        float t = 0.0;
+        if (dist > border)
+        t = 1.0;
+        else if (dist > 0.0)
+        t = dist / border;
+
+        // float centerDist = length(gl_PointCoord - 0.5);
+        // works for overlapping circles if blending is enabled
+
+
+
+        gl_FragColor = mix(color0, color1, t);
+        //gl_FragColor=vec4(1.0,0.0,0.0,1.0);
+
+
+
+
+        /*
+        // -- another way for circle
+        float centerDist = length(gl_PointCoord - 0.5);
+        float radius = 0.5;
+        // works for overlapping circles if blending is enabled
+        gl_FragColor = vec4(v_color[0], v_color[1], v_color[2], 0.2 * step(centerDist, radius));
+        */
+
+        /*
+        // simple circles
+        float d = distance (gl_PointCoord, vec2(0.5,0.5));
+        if (d < 0.5 ){
+        gl_FragColor =vec4(v_color[0], v_color[1], v_color[2], 0.2);
+        }
+        else{
+        discard;
+        }
+        */
+
+        // -- squares
+        //gl_FragColor = v_color;
+        //gl_FragColor =vec4(v_color[0], v_color[1], v_color[2], 0.2); // v_color;
+
+        }
+
+    </script>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script type="text/javascript" src="timeLineBrush.js"></script>
+    <script src="crossfilter.js"></script>
+    <script src="/community_districts.geojson"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+</head>
+<body>
+    <div id="map"></div>
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"
+    integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log=="
+    crossorigin=""></script>
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.js"></script>
+    <script src="http://www.sumbera.com/gist/js/leaflet/canvas/L.CanvasOverlay.js"></script>
+
+    <input id="mapButton0" class="filterButton" type="radio" name="Maps" value="ALL" autocomplete="off" onclick="forceSelection()" checked>
+    <input id="mapButton1" class="filterButton" type="radio" name="Maps" value="QUEENS" autocomplete="off" onclick="forceSelection()">
+    <input id="mapButton2" class="filterButton" type="radio" name="Maps" value="BRONX" autocomplete="off" onclick="forceSelection()">
+    <input id="mapButton3" class="filterButton" type="radio" name="Maps" value="BROOKLYN" autocomplete="off" onclick="forceSelection()">
+    <input id="mapButton4" class="filterButton" type="radio" name="Maps" value="STATEN ISLAND" autocomplete="off" onclick="forceSelection()">
+    <input id="mapButton5" class="filterButton" type="radio" name="Maps" value="MANHATTAN" autocomplete="off" onclick="forceSelection()">
+
+    <input id="remGeoButton" type="checkbox" autocomplete="off" onclick="removeGeoJson()">
+
+    <script>
+        var myDispatcher = d3.dispatch("selectionChanged","nullSelection");
+        myDispatcher.on("selectionChanged", function(){
+          if(document.getElementById('remGeoButton').checked)return;
+          str = document.querySelector('input[name="Maps"]:checked').value;
+          var that = this;
+          standardOperation(markers.filter(function(d){return (str=="ALL" || d.area==str) && inInterval(that.dates[0],that.dates[1],d.date)}))
+        });
+        myDispatcher.on("nullSelection", function(){
+          if(document.getElementById('remGeoButton').checked)return;
+          document.getElementById('mapButton0').checked=true;
+          standardOperation(markers)
+        });
+
+        var k = new TimeLineBrush("t1",10,0,1,[]);
+        k.dispatcher=myDispatcher;
+        var leafletMap = L.map('map').setView([40.730610, -73.935242], 12);
+        L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiYnZjbCIsImEiOiJjajhjOTRob2EwN2dyMndwbXd2cDJyZnRnIn0.7ZyvE-5-N36TRT56T-Us8g', {
+          attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
+          maxZoom: 18,
+          id: 'mapbox.streets',
+          accessToken: 'your.mapbox.access.token'
+        }).addTo(leafletMap);
+        var glLayer = L.canvasOverlay()
+                       .drawing(drawingOnCanvas)
+                       .addTo(leafletMap);
+        oldL = L.noConflict();
+        console.log(oldL.version);
+        console.log(L.version);
+        var geoJson;
+        var gjData
+        $.getJSON("Police Precincts.geojson",function(data){
+        // add GeoJSON layer to the map once the file is loaded
+            geoJson=oldL.geoJson(data);
+            data.features.forEach(function(d){
+              d.properties.occurrences=0;
+            })
+            gjData=data;
+            //geoJson.addTo(mymap);
+        });
+
+        var flag=true;
+        function removeGeoJson(){
+          var color2 = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, crimeGroupsByPDPT.top(1)[0].value]).clamp(true);
+          if(flag){
+            gjData.features.forEach(function(d){
+              var objAux = crimeGroupsByPDPT.all().find((item) => item.key === Number(d.properties.precinct));
+              if(typeof(objAux)!=="undefined")d.properties.occurrences=objAux.value;
+              else d.properties.occurrences=0;
+            })
+            flag=false;
+          }
+          if(!document.getElementById('remGeoButton').checked){
+            geoJson.clearLayers();
+            forceBrush();
+          }
+          else{
+            geoJson=oldL.geoJson(gjData,{
+              style: function(d){
+                return {fillColor: "red",
+                        color: "red",
+                        fillOpacity: 0.4,
+                        opacity: 0.4};
+              },
+              onEachFeature:function(d,layer){
+                layer.on("mouseover",function(e){
+                  obj = LatLongToPixelXY(e.latlng.lat,e.latlng.lng)
+                  console.log(obj);
+                  console.log("inside mouseover");
+                  console.log(layer.getBounds().getCenter());
+                  createPopUp(layer.getBounds().getCenter(),d.properties.occurrences)
+                  //problemas na criacao do popup e na cor do choropleth
+                })
+                layer.on("mouseout",function(){
+                  //popup.remove();
+                })
+              }
+            });
+            geoJson.addTo(leafletMap);
+            standardOperation([]);
+          }
+        }
+
+        var canvas = glLayer.canvas();
+
+        glLayer.canvas.width = canvas.clientWidth;
+        glLayer.canvas.height = canvas.clientHeight;
+
+
+        var gl = canvas.getContext('experimental-webgl', { antialias: true });
+
+        var pixelsToWebGLMatrix = new Float32Array(16);
+        var mapMatrix = new Float32Array(16);
+
+        // -- WebGl setup
+        var vertexShader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vertexShader, document.getElementById('vshader').text);
+        gl.compileShader(vertexShader);
+
+        var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fragmentShader, document.getElementById('fshader').text);
+        gl.compileShader(fragmentShader);
+
+        // link shaders to create our program
+        var program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+
+
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.enable(gl.BLEND);
+        // gl.depthFunc(gl.LESS);
+        //gl.enable(gl.DEPTH_TEST);
+        //gl.disable(gl.DEPTH_TEST)
+        // ----------------------------
+        // look up the locations for the inputs to our shaders.
+        var u_colorFlag = gl.getUniformLocation(program, "u_colorFlag");
+        var u_matLoc = gl.getUniformLocation(program, "u_matrix");
+        var colorLoc = gl.getAttribLocation(program, "a_color");
+        var vertLoc = gl.getAttribLocation(program, "a_vertex");
+        gl.aPointSize = gl.getAttribLocation(program, "a_pointSize");
+        // Set the matrix to some that makes 1 unit 1 pixel.
+
+        pixelsToWebGLMatrix.set([2 / canvas.width, 0, 0, 0, 0, -2 / canvas.height, 0, 0, 0, 0, 0, 0, -1, 1, 0, 1]);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+
+        gl.uniformMatrix4fv(u_matLoc, false, pixelsToWebGLMatrix);
+        gl.uniform1i(u_colorFlag, 1);
+
+        var vertArray;
+        // -- data
+        var crimeTypeCurrVert=[];
+        var numPoints=0;
+        d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
+          var crimeNYC = crossfilter(data);
+          crimeByPlace = crimeNYC.dimension(function(d) { return d.BORO_NM; });
+          crimeByPDPT = crimeNYC.dimension(function(d) { return Number(d.ADDR_PCT_CD); });
+          crimeGroupsByPDPT = crimeByPDPT.group();
+          crimeByDate = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT); });
+          crimeByDate2 = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT); });
+          crimeByDate2.filter(function(d){
+            return inInterval(parseDate("01/01/2000"),parseDate("12/31/2016"),d)
+          })
+          crimeGroupsByDate = crimeByDate.group(function(d){if(inInterval(parseDate("01/01/2000"),parseDate("12/31/2016"),d))return d});
+          data.forEach(function(d,i){
+            //-- 2 coord, 3 rgb colors interleaved buffer
+            addMarker(d);
+          })
+          numPoints=markers.length;
+          standardOperation(markers);
+          k.updateLineChart(crimeGroupsByDate.all());
+        })
+
+        var markers=[];
+        function addMarker(obj){
+          if(!inInterval(parseDate("01/01/2000"),parseDate("12/31/2016"),parseDate(obj.CMPLNT_FR_DT)))return;
+          objAux  = LatLongToPixelXY(parseFloat(obj.Latitude),parseFloat(obj.Longitude));
+          var circle ={
+              x:objAux.x,
+              y:objAux.y,
+              text:obj.OFNS_DESC,
+              area:obj.BORO_NM,
+              date:parseDate(obj.CMPLNT_FR_DT)
+          }
+
+          markers.push(circle);
+        }
+
+        var popup = oldL.popup();
+        function createPopUp(pos,text) {
+          console.log("creating pop up");
+          popup
+          .setLatLng(pos)
+          .setContent(text.toString())
+          .openOn(leafletMap);
+        }
+
+
+        leafletMap.on('mousemove', function(e) {
+          obj = LatLongToPixelXY(e.latlng.lat,e.latlng.lng)
+          if(popup._isOpen){
+            obj2 = LatLongToPixelXY(popup._latlng.lat,popup._latlng.lng)
+            if(aprxEqual(obj.x,obj.y,obj2.x,obj2.y,0.002))return;
+            else leafletMap.closePopup();
+          }
+          else{
+            for(i=0;i<vertArray.length;i+=5){
+              if(aprxEqual(vertArray[i],vertArray[i+1],obj.x,obj.y,0.0003)){
+                createPopUp(e.latlng,crimeTypeCurrVert[(i/5)])
+                break;
+              }
+            }
+          }
+        });
+
+        function aprxEqual(x1,y1,x2,y2,range){
+          return (x1+range>x2 && x1-range<x2 && y1+range>y2 && y1-range<y2)
+        }
+        var parseDate = d3.timeParse("%m/%d/%Y");
+        function inInterval(a,b,c){
+          return (c-a>=0 && b-c>=0);
+        }
+
+        function standardOperation(arr) {
+          numPoints=arr.length;
+          var vertBuffer = gl.createBuffer();
+          newArr=[];
+          for(i=0;i<numPoints;i++){
+            newArr.push(arr[i].x,arr[i].y,255,0,0)
+            crimeTypeCurrVert.push(arr[i].text)
+          }
+          vertArray = new Float32Array(newArr);
+          var fsize = vertArray.BYTES_PER_ELEMENT;
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, vertBuffer);
+          gl.bufferData(gl.ARRAY_BUFFER, vertArray, gl.DYNAMIC_DRAW);
+
+          gl.vertexAttribPointer(vertLoc, 2, gl.FLOAT, false,fsize*5,0);
+          gl.enableVertexAttribArray(vertLoc);
+          // -- offset for color buffer
+          gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, fsize*5, fsize*2);
+          gl.enableVertexAttribArray(colorLoc);
+
+          glLayer.redraw();
+        }
+
+        /*
+        var indexesForMan = []
+        var indexesForSti = []
+        var indexesForQue = []
+        var indexesForBrx = []
+        var indexesForBrk = []
+        var indexesForPlaces = [indexesForMan,indexesForSti,indexesForQue,indexesForBrx,indexesForBrk]
+        function hashFunc(placeCode){
+          if(placeCode==0)return Array.apply(null, {length: markers.length }).map(Number.call, Number)
+          return indexesForPlaces[placeCode];
+        }
+      }
+        */
+        function forceBrush(){
+          k.forceBrush();
+        }
+        function forceSelection(){
+          str = document.querySelector('input[name="Maps"]:checked').value;
+
+          if(str!="ALL"){
+            crimeByPlace.filter(function(d){return d==str;})
+            k.updateLineChart(crimeGroupsByDate.all())
+            standardOperation(markers.filter(function(d){return d.area==str}));
+          }
+          else{
+            crimeByPlace.filterAll()
+            k.updateLineChart(crimeGroupsByDate.all())
+            standardOperation(markers);
+          }
+        }
+
+        function drawingOnCanvas(canvasOverlay, params) {
+            if (gl == null) return;
+
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            var pointSize = Math.max(leafletMap.getZoom() - 4.0, 1.0);
+            gl.vertexAttrib1f(gl.aPointSize, pointSize);
+
+
+            pixelsToWebGLMatrix.set([2 / canvas.width, 0, 0, 0, 0, -2 / canvas.height, 0, 0, 0, 0, 0, 0, -1, 1, 0, 1]);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            // -- set base matrix to translate canvas pixel coordinates -> webgl coordinates
+            mapMatrix.set(pixelsToWebGLMatrix);
+
+            var bounds = leafletMap.getBounds();
+            var topLeft = new L.LatLng(bounds.getNorth(), bounds.getWest());
+            var offset = LatLongToPixelXY(topLeft.lat, topLeft.lng);
+
+            // -- Scale to current zoom
+            var scale = Math.pow(2, leafletMap.getZoom());
+            scaleMatrix(mapMatrix, scale, scale);
+
+            translateMatrix(mapMatrix, -offset.x, -offset.y);
+
+            // -- attach matrix value to 'mapMatrix' uniform in shader
+            gl.uniformMatrix4fv(u_matLoc, false, mapMatrix);
+
+            gl.drawArrays(gl.POINTS, 0, numPoints);
+        }
+
+        // Returns a random integer from 0 to range - 1.
+        function randomInt(range) {
+            return Math.floor(Math.random() * range);
+        }
+
+        /*
+        function latlonToPixels(lat, lon) {
+            initialResolution = 2 * Math.PI * 6378137 / 256, // at zoomlevel 0
+            originShift = 2 * Math.PI * 6378137 / 2;
+
+            // -- to meters
+            var mx = lon * originShift / 180;
+            var my = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
+            my = my * originShift / 180;
+
+
+            // -- to pixels at zoom level 0
+
+            var res = initialResolution;
+            x = (mx + originShift) / res,
+            y = (my + originShift) / res;
+
+
+            return { x: x, y: 256- y };
+        }
+        */
+        // -- converts latlon to pixels at zoom level 0 (for 256x256 tile size) , inverts y coord )
+        // -- source : http://build-failed.blogspot.cz/2013/02/displaying-webgl-data-on-google-maps.html
+
+        function LatLongToPixelXY(latitude, longitude) {
+            var pi_180 = Math.PI / 180.0;
+            var pi_4 = Math.PI * 4;
+            var sinLatitude = Math.sin(latitude * pi_180);
+            var pixelY = (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (pi_4)) * 256;
+            var pixelX = ((longitude + 180) / 360) * 256;
+
+            var pixel = { x: pixelX, y: pixelY };
+
+            return pixel;
+        }
+
+        function translateMatrix(matrix, tx, ty) {
+            // translation is in last column of matrix
+            matrix[12] += matrix[0] * tx + matrix[4] * ty;
+            matrix[13] += matrix[1] * tx + matrix[5] * ty;
+            matrix[14] += matrix[2] * tx + matrix[6] * ty;
+            matrix[15] += matrix[3] * tx + matrix[7] * ty;
+        }
+
+        function scaleMatrix(matrix, scaleX, scaleY) {
+            // scaling x and y, which is just scaling first two columns of matrix
+            matrix[0] *= scaleX;
+            matrix[1] *= scaleX;
+            matrix[2] *= scaleX;
+            matrix[3] *= scaleX;
+
+            matrix[4] *= scaleY;
+            matrix[5] *= scaleY;
+            matrix[6] *= scaleY;
+            matrix[7] *= scaleY;
+        }
+
+
+    </script>
+    <label id="labelMapa0">All</label>
+    <label id="labelMapa1">Queens</label>
+    <label id="labelMapa2">Bronx</label>
+    <label id="labelMapa3">Brooklyn</label>
+    <label id="labelMapa4">Staten Island</label>
+    <label id="labelMapa5">Manhattan</label>
+
+    <label id="policeDepts">Show Police Depts.</label>
+
+</body>
+</html>

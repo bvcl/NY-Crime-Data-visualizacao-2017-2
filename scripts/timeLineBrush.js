@@ -22,7 +22,7 @@ class TimeLineBrush{
 
       this.x2 = d3.scaleTime().range([posx,posx+641]).domain([parseDate("01/01/2000"),parseDate("12/31/2016")]);
 
-      this.currentYScale = d3.scaleLinear().range([posy+60,posy]).domain([0,781]);
+      this.currentYScale = d3.scaleLinear().range([posy+60,posy]);
 
       this.currentScale=d3.scaleTime().range([posx,posx+641]).domain([parseDate("01/01/2000"),parseDate("12/31/2016")]);
       this.currentInvScale=d3.scaleTime().domain([posx,posx+641]).range([parseDate("01/01/2000"),parseDate("12/31/2016")]);
@@ -39,6 +39,7 @@ class TimeLineBrush{
                     })
 
       this.xAxis2 = d3.axisBottom(this.x2).ticks(17);//.tickFormat(d3.timeFormat("%Y"));
+      this.yAxis2 = d3.axisRight(this.currentYScale).ticks(5);
 
       this.brush = d3.brushX()
           .extent([[posx,posy], [posx+641, posy+60]])
@@ -48,15 +49,20 @@ class TimeLineBrush{
       .attr("class", "zoom")
       .attr("width", (641))
       .attr("height", (posy+80))
+      .attr("transform","translate(0,5)")
       .style("pointer-events", "all")
       .style("fill","none")
       .call(this.zoom)
 
       this.context = this.svg.append("g")
       .attr("class", "context")
+      .attr("transform","translate(0,5)")
+
 
       this.context2 = this.svg.append("g")
       .attr("class", "context2")
+      .attr("transform","translate(0,5)")
+
 
       this.context2.append("path").attr("d",this.line([])).attr("class","line").style("fill", "none").style("stroke", "blue").style("stroke-width", 2) ;
 
@@ -65,6 +71,11 @@ class TimeLineBrush{
       .attr("class", "axisX")
       .attr("transform", "translate(0,"+posy+62+")")
       .call(this.xAxis2);
+
+      this.context.append("g")
+      .attr("class", "axisY")
+      .attr("transform", "translate(650,0)")
+      .call(this.yAxis2);
 
       this.context.append("g")
       .attr("class", "brush")
@@ -125,6 +136,8 @@ class TimeLineBrush{
     }
 
     updateLineChart(data){
+        this.currentYScale.domain([0, d3.max(data, function(d) { return d.value; })]);
+        this.context.select(".axisY").call(this.yAxis2.scale(this.currentYScale));
         this.data=data;
         this.iniData=data;
         this.context2.select(".line").attr("d", this.line(this.data));
