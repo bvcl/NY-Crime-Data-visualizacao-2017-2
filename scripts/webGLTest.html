@@ -185,12 +185,12 @@
           if(document.getElementById('remGeoButton').checked)return;
           str = document.querySelector('input[name="Maps"]:checked').value;
           var that = this;
-          standardOperation(markers.filter(function(d){return (str=="ALL" || d.area==str) && inInterval(that.dates[0],that.dates[1],d.date)}))
+          standardOperation(intersection(hashFuncDate(that.dates[0],that.dates[1]),hashFuncPlace(str)))
         });
         myDispatcher.on("nullSelection", function(){
           if(document.getElementById('remGeoButton').checked)return;
           document.getElementById('mapButton0').checked=true;
-          standardOperation(markers)
+          standardOperation(hashFuncPlace("ALL"));
         });
 
         var k = new TimeLineBrush("t1",10,0,1,[]);
@@ -208,6 +208,7 @@
         oldL = L.noConflict();
         console.log(oldL.version);
         console.log(L.version);
+
         var geoJson;
         var gjData
         $.getJSON("Police Precincts.geojson",function(data){
@@ -315,7 +316,11 @@
         // -- data
         var crimeTypeCurrVert=[];
         var numPoints=0;
-        d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
+        var indexesByDate =[];
+        for(i=0;i<6210;i++)indexesByDate.push([]);
+                                //MNT,STI,QES,BRX,BRK
+        var indexesForPlaces = [[],[],[],[],[]];
+        d3.csv("NYPD_Complaint_Data_Historic_Sample100k.csv",function(data){
           var crimeNYC = crossfilter(data);
           crimeByPlace = crimeNYC.dimension(function(d) { return d.BORO_NM; });
           crimeByPDPT = crimeNYC.dimension(function(d) { return Number(d.ADDR_PCT_CD); });
@@ -331,7 +336,7 @@
             addMarker(d);
           })
           numPoints=markers.length;
-          standardOperation(markers);
+          standardOperation(hashFuncPlace("ALL"));
           k.updateLineChart(crimeGroupsByDate.all());
         })
 
@@ -346,7 +351,8 @@
               area:obj.BORO_NM,
               date:parseDate(obj.CMPLNT_FR_DT)
           }
-
+          indexesForPlaces[placeToCode(circle.area)].push(markers.length);
+          indexesByDate[getHashCode(circle.date)].push(markers.length)
           markers.push(circle);
         }
 
@@ -380,7 +386,9 @@
         function aprxEqual(x1,y1,x2,y2,range){
           return (x1+range>x2 && x1-range<x2 && y1+range>y2 && y1-range<y2)
         }
+
         var parseDate = d3.timeParse("%m/%d/%Y");
+
         function inInterval(a,b,c){
           return (c-a>=0 && b-c>=0);
         }
@@ -390,7 +398,8 @@
           var vertBuffer = gl.createBuffer();
           newArr=[];
           for(i=0;i<numPoints;i++){
-            newArr.push(arr[i].x,arr[i].y,255,0,0)
+            newArr.push(markers[arr[i]].x,markers[arr[i]].y,255,0,0)
+            //newArr.push(arr[i].x,arr[i].y,255,0,0)
             crimeTypeCurrVert.push(arr[i].text)
           }
           vertArray = new Float32Array(newArr);
@@ -408,34 +417,50 @@
           glLayer.redraw();
         }
 
-        /*
-        var indexesForMan = []
-        var indexesForSti = []
-        var indexesForQue = []
-        var indexesForBrx = []
-        var indexesForBrk = []
-        var indexesForPlaces = [indexesForMan,indexesForSti,indexesForQue,indexesForBrx,indexesForBrk]
-        function hashFunc(placeCode){
-          if(placeCode==0)return Array.apply(null, {length: markers.length }).map(Number.call, Number)
-          return indexesForPlaces[placeCode];
+
+        function placeToCode(place){
+          if(place=="MANHATTAN")return 0;
+          if(place=="STATEN ISLAND")return 1;
+          if(place=="QUEENS")return 2;
+          if(place=="BRONX")return 3;
+          if(place=="BROOKLYN")return 4;
+          return 5;
         }
-      }
-        */
+
+        function hashFuncPlace(place){
+          if(placeToCode(place)==5)return Array.apply(null, {length: markers.length }).map(Number.call, Number)
+          return indexesForPlaces[placeToCode(place)];
+        }
+
+        function getHashCode(date){
+          return Math.round(((Date.parse(date.toString()))/86400000)-10957)
+          //getIndexForDate retorna 0 para 01/01/2000, 1 para 01/02/2000,..., 6209 para 31/12/2016
+        }
+
+        function hashFuncDate(firstDate,finalDate){
+          return [].concat.apply([], indexesByDate.slice(getHashCode(firstDate), (getHashCode(finalDate)+1)));
+        }
+
+        function intersection ( A , B ){
+            var m = A.reduce(function(m, v) { m[v] = 1; return m; }, {});
+            return B.filter(function(v) { return m[v]; });
+        }
+
+
         function forceBrush(){
           k.forceBrush();
         }
         function forceSelection(){
           str = document.querySelector('input[name="Maps"]:checked').value;
-
           if(str!="ALL"){
             crimeByPlace.filter(function(d){return d==str;})
             k.updateLineChart(crimeGroupsByDate.all())
-            standardOperation(markers.filter(function(d){return d.area==str}));
+            standardOperation(hashFuncPlace(str));
           }
           else{
             crimeByPlace.filterAll()
             k.updateLineChart(crimeGroupsByDate.all())
-            standardOperation(markers);
+            standardOperation(hashFuncPlace(str));
           }
         }
 
@@ -468,35 +493,10 @@
 
             gl.drawArrays(gl.POINTS, 0, numPoints);
         }
-
         // Returns a random integer from 0 to range - 1.
         function randomInt(range) {
             return Math.floor(Math.random() * range);
         }
-
-        /*
-        function latlonToPixels(lat, lon) {
-            initialResolution = 2 * Math.PI * 6378137 / 256, // at zoomlevel 0
-            originShift = 2 * Math.PI * 6378137 / 2;
-
-            // -- to meters
-            var mx = lon * originShift / 180;
-            var my = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
-            my = my * originShift / 180;
-
-
-            // -- to pixels at zoom level 0
-
-            var res = initialResolution;
-            x = (mx + originShift) / res,
-            y = (my + originShift) / res;
-
-
-            return { x: x, y: 256- y };
-        }
-        */
-        // -- converts latlon to pixels at zoom level 0 (for 256x256 tile size) , inverts y coord )
-        // -- source : http://build-failed.blogspot.cz/2013/02/displaying-webgl-data-on-google-maps.html
 
         function LatLongToPixelXY(latitude, longitude) {
             var pi_180 = Math.PI / 180.0;
@@ -530,6 +530,30 @@
             matrix[6] *= scaleY;
             matrix[7] *= scaleY;
         }
+
+        /*
+        function latlonToPixels(lat, lon) {
+            initialResolution = 2 * Math.PI * 6378137 / 256, // at zoomlevel 0
+            originShift = 2 * Math.PI * 6378137 / 2;
+
+            // -- to meters
+            var mx = lon * originShift / 180;
+            var my = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
+            my = my * originShift / 180;
+
+
+            // -- to pixels at zoom level 0
+
+            var res = initialResolution;
+            x = (mx + originShift) / res,
+            y = (my + originShift) / res;
+
+
+            return { x: x, y: 256- y };
+        }
+        */
+        // -- converts latlon to pixels at zoom level 0 (for 256x256 tile size) , inverts y coord )
+        // -- source : http://build-failed.blogspot.cz/2013/02/displaying-webgl-data-on-google-maps.html
 
 
     </script>
