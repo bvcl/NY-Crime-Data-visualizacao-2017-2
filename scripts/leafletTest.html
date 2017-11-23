@@ -93,6 +93,7 @@
   <script>
     var myDispatcher = d3.dispatch("selectionChanged","nullSelection");
     myDispatcher.on("selectionChanged", function(){
+      if(document.getElementById('remGeoButton').checked)return;
       str = document.querySelector('input[name="Maps"]:checked').value;
       for(var i=0;i<markers.length;i++){
         if(inInterval(this.dates[0],this.dates[1],markers[i].options.date) && (str=="ALL" || markers[i].options.area==str)){
@@ -102,6 +103,7 @@
       }
     });
     myDispatcher.on("nullSelection", function(){
+      if(document.getElementById('remGeoButton').checked)return;
       document.getElementById('mapButton0').checked=true;
       for(var i=0;i<markers.length;i++){
         markers[i].setStyle({fillOpacity:1,opacity:1});
@@ -246,14 +248,19 @@
     var crimeGroupsByPDPT,crimeByPDPT;
     var crimeGroupsByDate,crimeByDate,crimeByDate2;
     var crimeGroupsByLatLon,crimeByLatLon;
+    var crimeGroupsByDayOfWeek,crimeByDayOfWeek;
     d3.csv("NYPD_Complaint_Data_Historic_Sample100k.csv",function(data){
       console.log(data);
       var crimeNYC = crossfilter(data);
-
+      //console.log(parseDate("12/31/2016").getDay());
       crimeByLatLon = crimeNYC.dimension(function(d){return d.Lat_Lon});
 
       crimeByPDPT = crimeNYC.dimension(function(d) { return Number(d.ADDR_PCT_CD); });
       crimeGroupsByPDPT = crimeByPDPT.group();
+
+      crimeByDayOfWeek = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT).getDay(); });
+      crimeGroupsByDayOfWeek = crimeByDayOfWeek.group();
+      console.log(crimeGroupsByDayOfWeek.all());
 
       crimeByDate = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT); });
       crimeByDate2 = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT); });
