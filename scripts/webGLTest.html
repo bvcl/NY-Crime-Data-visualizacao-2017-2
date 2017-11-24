@@ -155,6 +155,7 @@
 
     </script>
     <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
     <script type="text/javascript" src="timeLineBrush.js"></script>
     <script src="crossfilter.js"></script>
     <script src="/community_districts.geojson"></script>
@@ -223,7 +224,7 @@
 
         var flag=true;
         function removeGeoJson(){
-          var color2 = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, crimeGroupsByPDPT.top(1)[0].value]).clamp(true);
+          var color2=d3.scaleSequential(d3.interpolateYlOrRd).domain([0, crimeGroupsByPDPT.top(1)[0].value]).clamp(true);
           if(flag){
             gjData.features.forEach(function(d){
               var objAux = crimeGroupsByPDPT.all().find((item) => item.key === Number(d.properties.precinct));
@@ -233,28 +234,42 @@
             flag=false;
           }
           if(!document.getElementById('remGeoButton').checked){
+            leafletMap.closePopup();
+            leafletMap.on('mousemove',function(e) {
+              obj = LatLongToPixelXY(e.latlng.lat,e.latlng.lng)
+              if(popup._isOpen){
+                obj2 = LatLongToPixelXY(popup._latlng.lat,popup._latlng.lng)
+                if(aprxEqual(obj.x,obj.y,obj2.x,obj2.y,0.002))return;
+                else leafletMap.closePopup();
+              }
+              else{
+                for(i=0;i<vertArray.length;i+=5){
+                  if(aprxEqual(vertArray[i],vertArray[i+1],obj.x,obj.y,0.0003)){
+                    createPopUp(e.latlng,crimeTypeCurrVert[(i/5)])
+                    break;
+                  }
+                }
+              }
+            });
             geoJson.clearLayers();
             forceBrush();
           }
           else{
+            leafletMap.off('mousemove');
             geoJson=oldL.geoJson(gjData,{
               style: function(d){
-                return {fillColor: "red",
-                        color: "red",
+                return {fillColor: color2(d.properties.occurrences),
+                        color: color2(d.properties.occurrences),
                         fillOpacity: 0.4,
                         opacity: 0.4};
               },
               onEachFeature:function(d,layer){
                 layer.on("mouseover",function(e){
                   obj = LatLongToPixelXY(e.latlng.lat,e.latlng.lng)
-                  console.log(obj);
-                  console.log("inside mouseover");
-                  console.log(layer.getBounds().getCenter());
                   createPopUp(layer.getBounds().getCenter(),d.properties.occurrences)
-                  //problemas na criacao do popup e na cor do choropleth
                 })
                 layer.on("mouseout",function(){
-                  //popup.remove();
+                  //leafletMap.closePopup();
                 })
               }
             });
@@ -320,7 +335,7 @@
         for(i=0;i<6210;i++)indexesByDate.push([]);
                                 //MNT,STI,QES,BRX,BRK
         var indexesForPlaces = [[],[],[],[],[]];
-        d3.csv("NYPD_Complaint_Data_Historic_Sample100k.csv",function(data){
+        d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
           var crimeNYC = crossfilter(data);
           crimeByPlace = crimeNYC.dimension(function(d) { return d.BORO_NM; });
           crimeByPDPT = crimeNYC.dimension(function(d) { return Number(d.ADDR_PCT_CD); });
@@ -399,8 +414,7 @@
           newArr=[];
           for(i=0;i<numPoints;i++){
             newArr.push(markers[arr[i]].x,markers[arr[i]].y,255,0,0)
-            //newArr.push(arr[i].x,arr[i].y,255,0,0)
-            crimeTypeCurrVert.push(arr[i].text)
+            crimeTypeCurrVert.push(markers[arr[i]].text)
           }
           vertArray = new Float32Array(newArr);
           var fsize = vertArray.BYTES_PER_ELEMENT;
@@ -445,7 +459,9 @@
             var m = A.reduce(function(m, v) { m[v] = 1; return m; }, {});
             return B.filter(function(v) { return m[v]; });
         }
-
+        function manyIntersections(arrayOfArrays){
+          return arrayOfArrays.reduce(intersection)
+        }
 
         function forceBrush(){
           k.forceBrush();
