@@ -183,10 +183,15 @@
     <script>
         var myDispatcher = d3.dispatch("selectionChanged","nullSelection");
         myDispatcher.on("selectionChanged", function(){
-          if(document.getElementById('remGeoButton').checked)return;
+          //if(document.getElementById('remGeoButton').checked)return;
+          //para alterar a mudanca de choropleth com o brush remover o comentario acima,
+          //comentar as linhas crimeByDate.filter... e if(document.getElementById)....
+          //e tirar o else da linha else standardOperation(intersection).....
           str = document.querySelector('input[name="Maps"]:checked').value;
           var that = this;
-          standardOperation(intersection(hashFuncDate(that.dates[0],that.dates[1]),hashFuncPlace(str)))
+          crimeByDate.filter(function(d){return inInterval(that.dates[0],that.dates[1],d)})
+          if(document.getElementById('remGeoButton').checked){console.log("inside here");removeGeoJson();}
+          else standardOperation(intersection(hashFuncDate(that.dates[0],that.dates[1]),hashFuncPlace(str)))
         });
         myDispatcher.on("nullSelection", function(){
           if(document.getElementById('remGeoButton').checked)return;
@@ -222,17 +227,16 @@
             //geoJson.addTo(mymap);
         });
 
-        var flag=true;
+        var color2;
         function removeGeoJson(){
-          var color2=d3.scaleSequential(d3.interpolateYlOrRd).domain([0, crimeGroupsByPDPT.top(1)[0].value]).clamp(true);
-          if(flag){
-            gjData.features.forEach(function(d){
-              var objAux = crimeGroupsByPDPT.all().find((item) => item.key === Number(d.properties.precinct));
-              if(typeof(objAux)!=="undefined")d.properties.occurrences=objAux.value;
-              else d.properties.occurrences=0;
-            })
-            flag=false;
-          }
+          minDomain = crimeGroupsByPDPT.top(Infinity).reverse().filter(function(d){return d.value!=0})[0].value-10;
+          if(minDomain<0)minDomain=0;
+          color2=d3.scaleSequential(d3.interpolateYlOrRd).domain([minDomain, crimeGroupsByPDPT.top(1)[0].value]).clamp(true);
+          gjData.features.forEach(function(d){
+            var objAux = crimeGroupsByPDPT.all().find((item) => item.key === Number(d.properties.precinct));
+            if(typeof(objAux)!=="undefined")d.properties.occurrences=objAux.value;
+            else d.properties.occurrences=0;
+          })
           if(!document.getElementById('remGeoButton').checked){
             leafletMap.closePopup();
             leafletMap.on('mousemove',function(e) {
@@ -255,8 +259,15 @@
             forceBrush();
           }
           else{
+            geoJson.clearLayers();
             leafletMap.off('mousemove');
-            geoJson=oldL.geoJson(gjData,{
+            featuresToPlot=[]
+            gjData.features.forEach(function(d){
+              if(d.properties.occurrences!=0)featuresToPlot.push(d);
+            });
+            newgjData = {type:"FeatureCollection",features:featuresToPlot}
+            console.log(newgjData);
+            geoJson=oldL.geoJson(newgjData,{
               style: function(d){
                 return {fillColor: color2(d.properties.occurrences),
                         color: color2(d.properties.occurrences),
@@ -335,7 +346,7 @@
         for(i=0;i<6210;i++)indexesByDate.push([]);
                                 //MNT,STI,QES,BRX,BRK
         var indexesForPlaces = [[],[],[],[],[]];
-        d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
+        d3.csv("NYPD_Complaint_Data_Historic_Sample100k.csv",function(data){
           var crimeNYC = crossfilter(data);
           crimeByPlace = crimeNYC.dimension(function(d) { return d.BORO_NM; });
           crimeByPDPT = crimeNYC.dimension(function(d) { return Number(d.ADDR_PCT_CD); });
@@ -468,6 +479,13 @@
         }
         function forceSelection(){
           str = document.querySelector('input[name="Maps"]:checked').value;
+          if(document.getElementById('remGeoButton').checked){
+            if(str!="ALL")crimeByPlace.filter(function(d){return d==str;});
+            else crimeByPlace.filterAll()
+            k.updateLineChart(crimeGroupsByDate.all())
+            removeGeoJson();
+            return;
+          }
           if(str!="ALL"){
             crimeByPlace.filter(function(d){return d==str;})
             k.updateLineChart(crimeGroupsByDate.all())
