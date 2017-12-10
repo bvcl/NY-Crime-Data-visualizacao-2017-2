@@ -18,6 +18,21 @@
             height:500px;
             width:50%;
         }
+        #tlBrush {
+            position: static;
+            left: 22px;
+            top:510px;
+        }
+        #bchart1 {
+            position: absolute;
+            left: 670px;
+            top:110px;
+        }
+        #bchart2 {
+            position: absolute;
+            left: 670px;
+            top:250px;
+        }
         input{
           position:absolute;
           left: 800px;
@@ -157,6 +172,7 @@
     <script src="https://d3js.org/d3.v4.min.js"></script>
     <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
     <script type="text/javascript" src="timeLineBrush.js"></script>
+    <script type="text/javascript" src="linkedBarChart.js"></script>
     <script src="crossfilter.js"></script>
     <script src="/community_districts.geojson"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
@@ -164,6 +180,9 @@
 </head>
 <body>
     <div id="map"></div>
+    <div id="tlBrush"></div>
+    <div id="bchart1"></div>
+    <div id="bchart2"></div>
     <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"
     integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log=="
@@ -171,36 +190,85 @@
     <script src="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.js"></script>
     <script src="http://www.sumbera.com/gist/js/leaflet/canvas/L.CanvasOverlay.js"></script>
 
+    <!--
     <input id="mapButton0" class="filterButton" type="radio" name="Maps" value="ALL" autocomplete="off" onclick="forceSelection()" checked>
     <input id="mapButton1" class="filterButton" type="radio" name="Maps" value="QUEENS" autocomplete="off" onclick="forceSelection()">
     <input id="mapButton2" class="filterButton" type="radio" name="Maps" value="BRONX" autocomplete="off" onclick="forceSelection()">
     <input id="mapButton3" class="filterButton" type="radio" name="Maps" value="BROOKLYN" autocomplete="off" onclick="forceSelection()">
     <input id="mapButton4" class="filterButton" type="radio" name="Maps" value="STATEN ISLAND" autocomplete="off" onclick="forceSelection()">
     <input id="mapButton5" class="filterButton" type="radio" name="Maps" value="MANHATTAN" autocomplete="off" onclick="forceSelection()">
-
+    -->
     <input id="remGeoButton" type="checkbox" autocomplete="off" onclick="removeGeoJson()">
 
     <script>
         var myDispatcher = d3.dispatch("selectionChanged","nullSelection");
+        var myDispatcher2 = d3.dispatch("filterChanged");
         myDispatcher.on("selectionChanged", function(){
           //if(document.getElementById('remGeoButton').checked)return;
           //para alterar a mudanca de choropleth com o brush remover o comentario acima,
           //comentar as linhas crimeByDate.filter... e if(document.getElementById)....
           //e tirar o else da linha else standardOperation(intersection).....
-          str = document.querySelector('input[name="Maps"]:checked').value;
+          arrayFilterPlaces=[];
+          arrayFilterWeekDays=[];
+          currentFilters.forEach(function(d){
+            ptype = paramType(d);
+            if(ptype=="number"){
+              arrayFilterWeekDays.push(indexesForWeekDays[d]);
+            }
+            else if(ptype=="place"){
+              arrayFilterPlaces.push(hashFuncPlace(d))
+            }
+          })
+          if(arrayFilterWeekDays.length>0)arrayFilterWeekDays = [].concat.apply([], arrayFilterWeekDays.slice(0, arrayFilterWeekDays.length));
+          else arrayFilterWeekDays = [].concat.apply([], indexesForWeekDays.slice(0, indexesForWeekDays.length));
+          if(arrayFilterPlaces.length>0)arrayFilterPlaces = [].concat.apply([], arrayFilterPlaces.slice(0, arrayFilterPlaces.length))
+          else arrayFilterPlaces = [].concat.apply([], indexesForPlaces.slice(0, indexesForPlaces.length))
           var that = this;
           crimeByDate.filter(function(d){return inInterval(that.dates[0],that.dates[1],d)})
+          bc1.updatePlot(crimeByDayOfWeek);
+          bc2.updatePlot(crimeByPlace)
           if(document.getElementById('remGeoButton').checked){console.log("inside here");removeGeoJson();}
-          else standardOperation(intersection(hashFuncDate(that.dates[0],that.dates[1]),hashFuncPlace(str)))
+          else standardOperation(manyIntersections([hashFuncDate(that.dates[0],that.dates[1]),arrayFilterPlaces,arrayFilterWeekDays]))
         });
         myDispatcher.on("nullSelection", function(){
           if(document.getElementById('remGeoButton').checked)return;
           document.getElementById('mapButton0').checked=true;
           standardOperation(hashFuncPlace("ALL"));
         });
-
+        var currentFilters=[];
+        myDispatcher2.on("filterChanged",function(){
+          currentFilters=[];
+          this.filters.forEach(function(d){
+            currentFilters.push(d);
+          })
+          var that = this;
+          if(this.id==2){
+            if(this.filters.length>0)crimeByDayOfWeek.filter(function(d){return that.filters.indexOf(d)>-1})
+            else crimeByDayOfWeek.filterAll();
+            updateByWeekDay(that.filters);
+          }
+          else if(this.id==3){
+            console.log(crimeByPlace.top(Infinity));
+            if(this.filters.length>0)crimeByPlace.filter(function(d){return that.filters.indexOf(d)>-1})
+            else crimeByPlace.filterAll();
+            console.log(crimeByPlace.top(Infinity));
+            forceSelection(that.filters)
+          }
+          linkedBarChartArray.forEach(function(d){
+            if(that.id!=d.id){
+              if(d.id==2)d.updatePlot(crimeByDayOfWeek)
+              else d.updatePlot(crimeByPlace)
+            }
+          })
+        })
+        linkedBarChartArray = [];
+        var bc1 = new LinkedBarChart("bc1",800,0,2,[],"#bchart1");//crimeByDayOfWeek
+        var bc2 = new LinkedBarChart("bc2",800,200,3,[],"#bchart2")//crimeByPlace
+        linkedBarChartArray.push(bc1,bc2)
         var k = new TimeLineBrush("t1",10,0,1,[]);
         k.dispatcher=myDispatcher;
+        bc1.dispatcher=myDispatcher2;
+        bc2.dispatcher=myDispatcher2;
         var leafletMap = L.map('map').setView([40.730610, -73.935242], 12);
         L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiYnZjbCIsImEiOiJjajhjOTRob2EwN2dyMndwbXd2cDJyZnRnIn0.7ZyvE-5-N36TRT56T-Us8g', {
           attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
@@ -255,6 +323,7 @@
                 }
               }
             });
+            console.log("aqui");
             geoJson.clearLayers();
             forceBrush();
           }
@@ -346,10 +415,14 @@
         for(i=0;i<6210;i++)indexesByDate.push([]);
                                 //MNT,STI,QES,BRX,BRK
         var indexesForPlaces = [[],[],[],[],[]];
-        d3.csv("NYPD_Complaint_Data_Historic_Sample100k.csv",function(data){
-          var crimeNYC = crossfilter(data);
+        var indexesForWeekDays = [[],[],[],[],[],[],[]];
+        var crimeNYC,crimeByPlace,crimeByPDPT,crimeByDayOfWeek;
+        d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
+          crimeNYC = crossfilter(data);
           crimeByPlace = crimeNYC.dimension(function(d) { return d.BORO_NM; });
           crimeByPDPT = crimeNYC.dimension(function(d) { return Number(d.ADDR_PCT_CD); });
+          crimeByDayOfWeek = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT).getDay()});
+
           crimeGroupsByPDPT = crimeByPDPT.group();
           crimeByDate = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT); });
           crimeByDate2 = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT); });
@@ -364,6 +437,8 @@
           numPoints=markers.length;
           standardOperation(hashFuncPlace("ALL"));
           k.updateLineChart(crimeGroupsByDate.all());
+          bc1.generatePlot(crimeByDayOfWeek)
+          bc2.generatePlot(crimeByPlace)
         })
 
         var markers=[];
@@ -378,7 +453,8 @@
               date:parseDate(obj.CMPLNT_FR_DT)
           }
           indexesForPlaces[placeToCode(circle.area)].push(markers.length);
-          indexesByDate[getHashCode(circle.date)].push(markers.length)
+          indexesByDate[getHashCode(circle.date)].push(markers.length);
+          indexesForWeekDays[circle.date.getDay()].push(markers.length);
           markers.push(circle);
         }
 
@@ -442,7 +518,10 @@
           glLayer.redraw();
         }
 
-
+        function paramType(param){
+          if(typeof(param) === 'number')return "number";
+          else if(param=='STATEN ISLAND' || param=='QUEENS' || param=='MANHATTAN' || param=='BROOKLYN' || param=='BRONX')return "place";
+        }
         function placeToCode(place){
           if(place=="MANHATTAN")return 0;
           if(place=="STATEN ISLAND")return 1;
@@ -477,24 +556,55 @@
         function forceBrush(){
           k.forceBrush();
         }
-        function forceSelection(){
-          str = document.querySelector('input[name="Maps"]:checked').value;
+        function updateByWeekDay(daysArray){
           if(document.getElementById('remGeoButton').checked){
-            if(str!="ALL")crimeByPlace.filter(function(d){return d==str;});
+            if(/*str!="ALL"*/daysArray.length>0)crimeByDayOfWeek.filter(function(d){return daysArray.indexOf(d)>-1;})
+            else crimeByDayOfWeek.filterAll()
+            k.updateLineChart(crimeGroupsByDate.all())
+            removeGeoJson();
+            return;
+          }
+          if(/*str!="ALL"*/daysArray.length>0){
+            crimeByDayOfWeek.filter(function(d){return daysArray.indexOf(d)>-1;})
+            k.updateLineChart(crimeGroupsByDate.all())
+            toPass = [];
+            daysArray.forEach(function(d){
+              toPass.push(indexesForWeekDays[d])
+            })
+            toReturn = [].concat.apply([], toPass.slice(0, toPass.length))
+            standardOperation(toReturn);
+          }
+          else{
+            crimeByDayOfWeek.filterAll();
+            k.updateLineChart(crimeGroupsByDate.all())
+            standardOperation([].concat.apply([], indexesForWeekDays.slice(0, indexesForWeekDays.length)));
+          }
+        }
+        function forceSelection(strArray){
+          //str = document.querySelector('input[name="Maps"]:checked').value;
+          if(document.getElementById('remGeoButton').checked){
+            if(strArray.length>0)crimeByPlace.filter(function(d){return strArray.indexOf(d)>-1;})
             else crimeByPlace.filterAll()
             k.updateLineChart(crimeGroupsByDate.all())
             removeGeoJson();
             return;
           }
-          if(str!="ALL"){
-            crimeByPlace.filter(function(d){return d==str;})
+          if(strArray.length>0){
+            crimeByPlace.filter(function(d){return strArray.indexOf(d)>-1;})
             k.updateLineChart(crimeGroupsByDate.all())
-            standardOperation(hashFuncPlace(str));
+            toPass = [];
+            strArray.forEach(function(d){
+              toPass.push(hashFuncPlace(d))
+            })
+            toReturn = [].concat.apply([], toPass.slice(0, toPass.length))
+            standardOperation(toReturn);
+            //forceBrush();
           }
           else{
             crimeByPlace.filterAll()
             k.updateLineChart(crimeGroupsByDate.all())
-            standardOperation(hashFuncPlace(str));
+            standardOperation(hashFuncPlace("ALL"));
+            //forceBrush();
           }
         }
 
@@ -591,13 +701,14 @@
 
 
     </script>
+    <!--
     <label id="labelMapa0">All</label>
     <label id="labelMapa1">Queens</label>
     <label id="labelMapa2">Bronx</label>
     <label id="labelMapa3">Brooklyn</label>
     <label id="labelMapa4">Staten Island</label>
     <label id="labelMapa5">Manhattan</label>
-
+    -->
     <label id="policeDepts">Show Police Depts.</label>
 
 </body>

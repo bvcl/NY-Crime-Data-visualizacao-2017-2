@@ -5,7 +5,7 @@ class TimeLineBrush{
       this.posx=posx;
       this.data = dataForLine;
       this.iniData = dataForLine;
-      this.svg = d3.select("body").append("svg")
+      this.svg = d3.select("#tlBrush").append("svg")
                   .attr("class","canvas")
                   .attr("width",700)
                   .attr("height",100)
