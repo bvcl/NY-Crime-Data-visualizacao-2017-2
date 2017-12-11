@@ -33,6 +33,11 @@
             left: 670px;
             top:250px;
         }
+        #heatmap {
+            position: absolute;
+            left: 100px;
+            top:600px;
+        }
         input{
           position:absolute;
           left: 800px;
@@ -85,6 +90,17 @@
         }
         .brush .overlay{
           cursor: default;
+        }
+        .axisHeatTable path,
+        .axisHeatTable line {
+          fill: none;
+          stroke: black;
+          shape-rendering: crispEdges;
+        }
+
+        .axisHeatTable text {
+            font-family: sans-serif;
+            font-size: 11px;
         }
     </style>
     <!-- vertex shader -->
@@ -173,6 +189,7 @@
     <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
     <script type="text/javascript" src="timeLineBrush.js"></script>
     <script type="text/javascript" src="linkedBarChart.js"></script>
+    <script type="text/javascript" src="heatMapTable.js"></script>
     <script src="crossfilter.js"></script>
     <script src="/community_districts.geojson"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
@@ -183,6 +200,7 @@
     <div id="tlBrush"></div>
     <div id="bchart1"></div>
     <div id="bchart2"></div>
+    <div id="heatmap"></div>
     <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"
     integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log=="
@@ -230,7 +248,7 @@
           if(arrayFilterPlaces.length>0)arrayFilterPlaces = [].concat.apply([], arrayFilterPlaces.slice(0, arrayFilterPlaces.length))
           else arrayFilterPlaces = [].concat.apply([], indexesForPlaces.slice(0, indexesForPlaces.length))
           var that = this;
-          crimeByDate.filter(function(d){return inInterval(that.dates[0],that.dates[1],d)})
+          crimeByDate.filter(function(d,i){return inInterval(that.dates[0],that.dates[1],d)})
           barsToPass1=[];
           barsToPass2=[];
           d3.selectAll(".bar1")._groups[0].forEach(function(d,i){
@@ -243,7 +261,7 @@
           });
           bc1.updatePlot(crimeByDayOfWeek,barsToPass1);
           bc2.updatePlot(crimeByPlace,barsToPass2)
-          if(document.getElementById('remGeoButton').checked){console.log("inside here");removeGeoJson();}
+          if(document.getElementById('remGeoButton').checked){removeGeoJson();}
           else standardOperation(manyIntersections([hashFuncDate(that.dates[0],that.dates[1]),arrayFilterPlaces,arrayFilterWeekDays]))
         });
         myDispatcher.on("nullSelection", function(){
@@ -300,8 +318,8 @@
           })
         })
         linkedBarChartArray = [];
-        var bc1 = new LinkedBarChart("bc1",800,0,2,[],"#bchart1");//crimeByDayOfWeek
-        var bc2 = new LinkedBarChart("bc2",800,200,3,[],"#bchart2")//crimeByPlace
+        var bc1 = new LinkedBarChart(2,[],"#bchart1");//crimeByDayOfWeek
+        var bc2 = new LinkedBarChart(3,[],"#bchart2")//crimeByPlace
         linkedBarChartArray.push(bc1,bc2)
         var k = new TimeLineBrush("t1",10,0,1,[]);
         k.dispatcher=myDispatcher;
@@ -361,7 +379,6 @@
                 }
               }
             });
-            console.log("aqui");
             geoJson.clearLayers();
             forceBrush();
           }
@@ -373,7 +390,6 @@
               if(d.properties.occurrences!=0)featuresToPlot.push(d);
             });
             newgjData = {type:"FeatureCollection",features:featuresToPlot}
-            console.log(newgjData);
             geoJson=oldL.geoJson(newgjData,{
               style: function(d){
                 return {fillColor: color2(d.properties.occurrences),
@@ -454,23 +470,42 @@
                                 //MNT,STI,QES,BRX,BRK
         var indexesForPlaces = [[],[],[],[],[]];
         var indexesForWeekDays = [[],[],[],[],[],[],[]];
-        var crimeNYC,crimeByPlace,crimeByPDPT,crimeByDayOfWeek;
+        var crimeNYC,crimeByPlace,crimeByPDPT,crimeByDayOfWeek,crimeByComDist;
         d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
           crimeNYC = crossfilter(data);
+
+          // d3.json('community_districts.geojson', function(err, json) {
+          //   data.forEach(function(d){
+          //     json.features.forEach(function(o) {
+          //       if(d3.geoContains(o,[parseFloat(d.Longitude),parseFloat(d.Latitude)])==true){
+          //         console.log("here");
+          //         d.BORO_CD = o.properties.BoroCD
+          //       }
+          //     })
+          //   })
+          //   crimeByComDist = crimeNYC.dimension(function(d) { return d.BORO_CD; });
+          //   crimeGroupsByComDist = crimeByComDist.group();
+          //   console.log(crimeGroupsByComDist.top(5));
+          // })
+
           crimeByPlace = crimeNYC.dimension(function(d) { return d.BORO_NM; });
           crimeByPDPT = crimeNYC.dimension(function(d) { return Number(d.ADDR_PCT_CD); });
           crimeByDayOfWeek = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT).getDay()});
-
+          hour_dimension = crimeNYC.dimension(function(d) { return d.CMPLNT_FR_TM.split(':')[0];});
+          crimes_dimension = crimeNYC.dimension(function(d) {return d.OFNS_DESC;})
           crimeGroupsByPDPT = crimeByPDPT.group();
           crimeByDate = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT); });
           crimeByDate2 = crimeNYC.dimension(function(d) { return parseDate(d.CMPLNT_FR_DT); });
           crimeByDate2.filter(function(d){
             return inInterval(parseDate("01/01/2000"),parseDate("12/31/2016"),d)
           })
+          //
+          // console.log(crimeGroupsByComDist.top(5));
+          var hmtable = new HeatMapTable(4,data);
           crimeGroupsByDate = crimeByDate.group(function(d){if(inInterval(parseDate("01/01/2000"),parseDate("12/31/2016"),d))return d});
           data.forEach(function(d,i){
             //-- 2 coord, 3 rgb colors interleaved buffer
-            addMarker(d);
+            addMarker(d)
           })
           numPoints=markers.length;
           standardOperation(hashFuncPlace("ALL"));
