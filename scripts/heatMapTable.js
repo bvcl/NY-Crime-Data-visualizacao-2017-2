@@ -68,7 +68,7 @@ class HeatMapTable{
               hour_dimension.filter(function(o) { return o == d.hour; });
               location_dim.filter(function(o) { return o == d.borough.toUpperCase(); });
               var crimeTypes = crimes_dimension.group().top(3)
-              var text1 = d.value + ' crimes were reported in ' + d.borough + ' at ' + d.hour + 'h';
+              var text1 = d.value + ' crime(s) reported in ' + d.borough + ' at ' + d.hour + 'h';
               var text2 = 'Most common: ' + crimeTypes[0].key.toLowerCase() + ', ' + crimeTypes[1].key.toLowerCase() + ', ' + crimeTypes[2].key.toLowerCase();
               auxThis.svg.append("text")
                   .attr("x", 0)
