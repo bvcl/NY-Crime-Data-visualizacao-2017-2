@@ -74,37 +74,73 @@ class LinkedBarChart{
                                   }})
   }
 
-  updatePlot(data){
+  updatePlot(data,currentBars){
+    console.log(currentBars);
     this.x.domain([0, d3.max(data.group().all(), function(d) { return d.value; })]);
     var auxThis = this;
     this.svg.select(".xAxis")
         .attr("transform", "translate(50," + 100 + ")")
         .call(d3.axisBottom(this.x));
-    var bars = this.svg.selectAll(".bar1")
-                  .remove()
-                  .exit()
-                  .data(data.group().all())
 
     var color2=d3.scaleSequential(d3.interpolateYlOrRd).domain([-d3.max(data.group().all(), function(d) { return d.value; }), d3.max(data.group().all(), function(d) { return d.value; })]).clamp(true);
+    var bars = this.svg.selectAll(".bar1")
+                       .remove()
+                       .exit()
+                       .data(data.group().all())
+    if(currentBars===undefined){
+      bars.enter().append("rect")
+      .attr("class", "bar1")
+      .attr("x", 0)
+      .attr("height", this.y.bandwidth())
+      .attr("y", function(d) { return auxThis.y(auxThis.getDia(d.key));})
+      .attr("width", function(d) { return (auxThis.x(d.value)-35); })
+      .attr("transform", "translate(85," + 0 + ")")
+      .attr("fill",function(d,i){return color2(d.value)})
+      .on('mouseover',function(d){console.log(d.value);})
+      .on('click',function(d){if(this.style.fill!="purple"){
+                                this.style.fill="purple";
+                                auxThis.redBars.push(this.__data__.key)
+                                if(auxThis.dispatcher!=null)auxThis.dispatcher.apply("filterChanged",{id:auxThis.id,filters:auxThis.redBars});
+                              }
+                              else{
+                                this.style.fill=color2(d.value)
+                                auxThis.redBars.splice(auxThis.redBars.indexOf(this.__data__.key),1)
+                                if(auxThis.dispatcher!=null)auxThis.dispatcher.apply("filterChanged",{id:auxThis.id,filters:auxThis.redBars});
+                              }})
 
-    bars.enter().append("rect")
-    .attr("class", "bar1")
-    .attr("x", 0)
-    .attr("height", this.y.bandwidth())
-    .attr("y", function(d) { return auxThis.y(auxThis.getDia(d.key)); })
-    .attr("width", function(d) { return (auxThis.x(d.value)-35); })
-    .attr("transform", "translate(85," + 0 + ")")
-    .attr("fill",function(d){return color2(d.value)})
-    .on('mouseover',function(d){console.log(d.value);})
-    .on('click',function(d){if(this.style.fill!="purple"){
-                              this.style.fill="purple";
-                              auxThis.redBars.push(this.__data__.key)
-                              if(auxThis.dispatcher!=null)auxThis.dispatcher.apply("filterChanged",{id:auxThis.id,filters:auxThis.redBars});
-                            }
-                            else{
-                              this.style.fill = color2(d.value);
-                              auxThis.redBars.splice(auxThis.redBars.indexOf(this.__data__.key),1)
-                              if(auxThis.dispatcher!=null)auxThis.dispatcher.apply("filterChanged",{id:auxThis.id,filters:auxThis.redBars});
-                            }})
+
+    }
+    else{
+      bars.enter().append("rect")
+      .attr("class", "bar1")
+      .attr("x", 0)
+      .attr("height", this.y.bandwidth())
+      .attr("y", function(d) { return auxThis.y(auxThis.getDia(d.key)); })
+      .attr("width", function(d) { return (auxThis.x(d.value)-35); })
+      .attr("transform", "translate(85," + 0 + ")")
+      .attr("fill",function(d,i){
+                                 if(currentBars[i].hasAttribute('style') && currentBars[i].getAttribute('style')=='fill: purple;'){
+                                  console.log("tem style purple");
+                                  this.style.fill="purple";
+                                  return "purple"
+                                 }
+                                 else{
+                                  this.style.fill=color2(d.value)
+                                  return color2(d.value)
+                                 }
+                                 })
+      .on('mouseover',function(d){console.log(d.value);})
+      .on('click',function(d){if(this.style.fill!="purple"){
+                                this.style.fill="purple";
+                                auxThis.redBars.push(this.__data__.key)
+                                if(auxThis.dispatcher!=null)auxThis.dispatcher.apply("filterChanged",{id:auxThis.id,filters:auxThis.redBars});
+                              }
+                              else{
+                                this.style.fill=color2(d.value)
+                                auxThis.redBars.splice(auxThis.redBars.indexOf(this.__data__.key),1)
+                                if(auxThis.dispatcher!=null)auxThis.dispatcher.apply("filterChanged",{id:auxThis.id,filters:auxThis.redBars});
+                              }})
+    }
+
   }
 }

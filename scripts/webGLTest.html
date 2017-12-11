@@ -203,11 +203,17 @@
     <script>
         var myDispatcher = d3.dispatch("selectionChanged","nullSelection");
         var myDispatcher2 = d3.dispatch("filterChanged");
+        var parseDate = d3.timeParse("%m/%d/%Y");
+        var limitDate1 = parseDate("01/01/2000");
+        var limitDate2 = parseDate("12/31/2016");
         myDispatcher.on("selectionChanged", function(){
           //if(document.getElementById('remGeoButton').checked)return;
           //para alterar a mudanca de choropleth com o brush remover o comentario acima,
           //comentar as linhas crimeByDate.filter... e if(document.getElementById)....
           //e tirar o else da linha else standardOperation(intersection).....
+
+          limitDate1=this.dates[0];
+          limitDate2=this.dates[1];
           arrayFilterPlaces=[];
           arrayFilterWeekDays=[];
           currentFilters.forEach(function(d){
@@ -225,8 +231,18 @@
           else arrayFilterPlaces = [].concat.apply([], indexesForPlaces.slice(0, indexesForPlaces.length))
           var that = this;
           crimeByDate.filter(function(d){return inInterval(that.dates[0],that.dates[1],d)})
-          bc1.updatePlot(crimeByDayOfWeek);
-          bc2.updatePlot(crimeByPlace)
+          barsToPass1=[];
+          barsToPass2=[];
+          d3.selectAll(".bar1")._groups[0].forEach(function(d,i){
+            if(i<7){
+              barsToPass1.push(d)
+            }
+            else{
+              barsToPass2.push(d)
+            }
+          });
+          bc1.updatePlot(crimeByDayOfWeek,barsToPass1);
+          bc2.updatePlot(crimeByPlace,barsToPass2)
           if(document.getElementById('remGeoButton').checked){console.log("inside here");removeGeoJson();}
           else standardOperation(manyIntersections([hashFuncDate(that.dates[0],that.dates[1]),arrayFilterPlaces,arrayFilterWeekDays]))
         });
@@ -236,28 +252,50 @@
           standardOperation(hashFuncPlace("ALL"));
         });
         var currentFilters=[];
+        var placeFilters=[];
+        var weekDaysFilters=[];
+        var filteredBChart1=false;
+        var filteredBChart2=false;
         myDispatcher2.on("filterChanged",function(){
           currentFilters=[];
-          this.filters.forEach(function(d){
-            currentFilters.push(d);
-          })
           var that = this;
           if(this.id==2){
-            if(this.filters.length>0)crimeByDayOfWeek.filter(function(d){return that.filters.indexOf(d)>-1})
-            else crimeByDayOfWeek.filterAll();
+            weekDaysFilters=[];
+            this.filters.forEach(function(d){
+              weekDaysFilters.push(d);
+            })
+            currentFilters=placeFilters.concat(weekDaysFilters)
+            if(this.filters.length>0){
+              filteredBChart1=true;
+              crimeByDayOfWeek.filter(function(d){return that.filters.indexOf(d)>-1})
+            }
+            else{
+              filteredBChart1=false;
+              crimeByDayOfWeek.filterAll();
+            }
             updateByWeekDay(that.filters);
           }
           else if(this.id==3){
-            console.log(crimeByPlace.top(Infinity));
-            if(this.filters.length>0)crimeByPlace.filter(function(d){return that.filters.indexOf(d)>-1})
-            else crimeByPlace.filterAll();
-            console.log(crimeByPlace.top(Infinity));
-            forceSelection(that.filters)
+            placeFilters=[]
+            this.filters.forEach(function(d){
+              placeFilters.push(d);
+            })
+            currentFilters=placeFilters.concat(weekDaysFilters)
+            if(this.filters.length>0){
+              filteredBChart2=true;
+              crimeByPlace.filter(function(d){return that.filters.indexOf(d)>-1})
+            }
+            else{
+              filteredBChart2=false;
+              crimeByPlace.filterAll();
+            }
+            forceSelection(that.filters);
           }
+
           linkedBarChartArray.forEach(function(d){
             if(that.id!=d.id){
-              if(d.id==2)d.updatePlot(crimeByDayOfWeek)
-              else d.updatePlot(crimeByPlace)
+              if(d.id==2 && filteredBChart1==false)d.updatePlot(crimeByDayOfWeek)
+              else if(d.id==3 && filteredBChart2==false) d.updatePlot(crimeByPlace)
             }
           })
         })
@@ -489,8 +527,6 @@
           return (x1+range>x2 && x1-range<x2 && y1+range>y2 && y1-range<y2)
         }
 
-        var parseDate = d3.timeParse("%m/%d/%Y");
-
         function inInterval(a,b,c){
           return (c-a>=0 && b-c>=0);
         }
@@ -558,30 +594,39 @@
         }
         function updateByWeekDay(daysArray){
           if(document.getElementById('remGeoButton').checked){
-            if(/*str!="ALL"*/daysArray.length>0)crimeByDayOfWeek.filter(function(d){return daysArray.indexOf(d)>-1;})
+            if(daysArray.length>0)crimeByDayOfWeek.filter(function(d){return daysArray.indexOf(d)>-1;})
             else crimeByDayOfWeek.filterAll()
             k.updateLineChart(crimeGroupsByDate.all())
             removeGeoJson();
             return;
           }
-          if(/*str!="ALL"*/daysArray.length>0){
+          if(daysArray.length>0){
             crimeByDayOfWeek.filter(function(d){return daysArray.indexOf(d)>-1;})
             k.updateLineChart(crimeGroupsByDate.all())
-            toPass = [];
-            daysArray.forEach(function(d){
-              toPass.push(indexesForWeekDays[d])
-            })
-            toReturn = [].concat.apply([], toPass.slice(0, toPass.length))
-            standardOperation(toReturn);
           }
           else{
             crimeByDayOfWeek.filterAll();
             k.updateLineChart(crimeGroupsByDate.all())
-            standardOperation([].concat.apply([], indexesForWeekDays.slice(0, indexesForWeekDays.length)));
           }
+          arrayFilterPlaces=[];
+          arrayFilterWeekDays=[];
+          currentFilters.forEach(function(d){
+            ptype = paramType(d);
+            if(ptype=="number"){
+              arrayFilterWeekDays.push(indexesForWeekDays[d]);
+            }
+            else if(ptype=="place"){
+              arrayFilterPlaces.push(hashFuncPlace(d))
+            }
+          })
+          if(arrayFilterWeekDays.length>0)arrayFilterWeekDays = [].concat.apply([], arrayFilterWeekDays.slice(0, arrayFilterWeekDays.length));
+          else arrayFilterWeekDays = [].concat.apply([], indexesForWeekDays.slice(0, indexesForWeekDays.length));
+          if(arrayFilterPlaces.length>0)arrayFilterPlaces = [].concat.apply([], arrayFilterPlaces.slice(0, arrayFilterPlaces.length))
+          else arrayFilterPlaces = [].concat.apply([], indexesForPlaces.slice(0, indexesForPlaces.length))
+
+          standardOperation(manyIntersections([hashFuncDate(limitDate1,limitDate2),arrayFilterPlaces,arrayFilterWeekDays]))
         }
         function forceSelection(strArray){
-          //str = document.querySelector('input[name="Maps"]:checked').value;
           if(document.getElementById('remGeoButton').checked){
             if(strArray.length>0)crimeByPlace.filter(function(d){return strArray.indexOf(d)>-1;})
             else crimeByPlace.filterAll()
@@ -590,22 +635,31 @@
             return;
           }
           if(strArray.length>0){
+            console.log("maior q 0");
             crimeByPlace.filter(function(d){return strArray.indexOf(d)>-1;})
             k.updateLineChart(crimeGroupsByDate.all())
-            toPass = [];
-            strArray.forEach(function(d){
-              toPass.push(hashFuncPlace(d))
-            })
-            toReturn = [].concat.apply([], toPass.slice(0, toPass.length))
-            standardOperation(toReturn);
-            //forceBrush();
           }
           else{
             crimeByPlace.filterAll()
             k.updateLineChart(crimeGroupsByDate.all())
-            standardOperation(hashFuncPlace("ALL"));
-            //forceBrush();
           }
+          arrayFilterPlaces=[];
+          arrayFilterWeekDays=[];
+          currentFilters.forEach(function(d){
+            ptype = paramType(d);
+            if(ptype=="number"){
+              arrayFilterWeekDays.push(indexesForWeekDays[d]);
+            }
+            else if(ptype=="place"){
+              arrayFilterPlaces.push(hashFuncPlace(d))
+            }
+          })
+          if(arrayFilterWeekDays.length>0)arrayFilterWeekDays = [].concat.apply([], arrayFilterWeekDays.slice(0, arrayFilterWeekDays.length));
+          else arrayFilterWeekDays = [].concat.apply([], indexesForWeekDays.slice(0, indexesForWeekDays.length));
+          if(arrayFilterPlaces.length>0)arrayFilterPlaces = [].concat.apply([], arrayFilterPlaces.slice(0, arrayFilterPlaces.length))
+          else arrayFilterPlaces = [].concat.apply([], indexesForPlaces.slice(0, indexesForPlaces.length))
+
+          standardOperation(manyIntersections([hashFuncDate(limitDate1,limitDate2),arrayFilterPlaces,arrayFilterWeekDays]))
         }
 
         function drawingOnCanvas(canvasOverlay, params) {
