@@ -1,9 +1,7 @@
 class LinkedBarChart{
-    constructor(name,posx,posy,id,dataForPlot,component){
+    constructor(id,dataForPlot,component){
       //data = crimeBySomething
       this.id=id;
-      this.name = name;
-      this.posx=posx;
       this.data = dataForPlot;
       this.iniData = dataForPlot;
       this.dataGroup = dataForPlot;
@@ -11,7 +9,6 @@ class LinkedBarChart{
                   .attr("class","canvas")
                   .attr("width",600)
                   .attr("height",150)
-                  //.attr("transform","translate("+posx + "," + posy + ")");
 
       this.newData=[];
       this.redBars=[];
@@ -75,7 +72,6 @@ class LinkedBarChart{
   }
 
   updatePlot(data,currentBars){
-    console.log(currentBars);
     this.x.domain([0, d3.max(data.group().all(), function(d) { return d.value; })]);
     var auxThis = this;
     this.svg.select(".xAxis")
