@@ -471,17 +471,19 @@
         var indexesForPlaces = [[],[],[],[],[]];
         var indexesForWeekDays = [[],[],[],[],[],[],[]];
         var crimeNYC,crimeByPlace,crimeByPDPT,crimeByDayOfWeek,crimeByComDist;
-        d3.csv("NYPD_Complaint_Data_Historic_Sample.csv",function(data){
+        d3.csv("NYPD_Complaint_Data_Historic_Sample100k_From_Node.csv",function(data){
           crimeNYC = crossfilter(data);
 
           // d3.json('community_districts.geojson', function(err, json) {
           //   data.forEach(function(d){
-          //     json.features.forEach(function(o) {
-          //       if(d3.geoContains(o,[parseFloat(d.Longitude),parseFloat(d.Latitude)])==true){
+          //     for(i=0;i<json.features.length;i++){
+          //       if(d3.geoContains(json.features[i],[parseFloat(d.Longitude),parseFloat(d.Latitude)])==true){
           //         console.log("here");
-          //         d.BORO_CD = o.properties.BoroCD
+          //         d.BORO_CD = json.features[i].properties.BoroCD;
+          //         break;
           //       }
-          //     })
+          //       if(i==json.features.length-1){console.log(d.Latitude);console.log(d.Longitude);}
+          //     }
           //   })
           //   crimeByComDist = crimeNYC.dimension(function(d) { return d.BORO_CD; });
           //   crimeGroupsByComDist = crimeByComDist.group();
