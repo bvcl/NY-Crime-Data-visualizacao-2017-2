@@ -72,9 +72,9 @@ class HeatMapTable{
               var text2 = 'Most common: ' + crimeTypes[0].key.toLowerCase() + ', ' + crimeTypes[1].key.toLowerCase() + ', ' + crimeTypes[2].key.toLowerCase();
               auxThis.svg.append("text")
                   .attr("x", 0)
-                  .attr("y", 220)
+                  .attr("y", 225)
                   .attr("class", "label")
-                  .attr("transform", "translate("+(400-text1.length)+"," + 20 + ")")
+                  .attr("transform", "translate("+80+"," + 20 + ")")
                   .style("font-family", "arial")
                   .style("font-size", "23px")
                   .style("fill","black")
