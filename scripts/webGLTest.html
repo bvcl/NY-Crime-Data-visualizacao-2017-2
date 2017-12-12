@@ -605,14 +605,12 @@
           indexesByDate[getHashCode(circle.date)].push(markers.length);
           indexesForWeekDays[circle.date.getDay()].push(markers.length);
           indexesForCrimeTypes[getCrimeCode(circle.text)].push(markers.length)
-          console.log(Number(circle.com_dist));
           indexesForComDisc[getCommunityCode(Number(circle.com_dist))].push(markers.length)
           markers.push(circle);
         }
 
         var popup = oldL.popup();
         function createPopUp(pos,text) {
-          console.log("creating pop up");
           popup
           .setLatLng(pos)
           .setContent(text.toString())
