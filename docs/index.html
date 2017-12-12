@@ -20,6 +20,16 @@ body, html {
     display: none;
 }
 </style>
+
+<head>
+  <script src="jquery.js"></script>
+  <script>
+  $(function(){
+    $("#includedContent").load("webGLTest.html");
+  });
+  </script>
+</head>
+
 <body>
 
 <!-- Links (sit on top) -->
@@ -33,6 +43,9 @@ body, html {
     </div>
     <div class="w3-col s3">
       <a href="#team" class="w3-button w3-block w3-black">TEAM</a>
+    </div>
+    <div class="w3-col s3">
+      <a href="#demo" class="w3-button w3-block w3-black">DEMO</a>
     </div>
   </div>
 </div>
@@ -93,6 +106,11 @@ body, html {
 </div>
 </div>
 
+<!--Demo Container-->
+<div class="w3-container w3-padding-64 w3-center" id="demo">
+  <h2>DEMO</h2>
+  <a href="../scripts/webGLTest.html" class="w3-button w3-block w3-black">Link</a>
+</div>
 
 
 </body>
